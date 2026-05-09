@@ -1,0 +1,62 @@
+#!/sbin/openrc-run
+description="Podroid X11 server (Xvnc + pulseaudio) for in-app viewer"
+
+depend() {
+    need podroid-network
+    before podroid-ready
+}
+
+XVNC_DISPLAY=:0
+XVNC_GEOMETRY=1280x720
+XVNC_PORT=5900
+PA_PORT=4713
+PA_RUNTIME=/run/podroid-pulse
+PA_LOGFILE=/var/log/pulse.log
+XVNC_LOGFILE=/var/log/xvnc.log
+
+start() {
+    ebegin "Starting X11 server (Xvnc + pulseaudio)"
+
+    mkdir -p "$PA_RUNTIME"
+    chmod 755 "$PA_RUNTIME"
+
+    # Xvnc: combined X server + RFB. No auth, listens on 5900.
+    # -SecurityTypes None is fine because the listening socket only sees
+    # SLIRP loopback traffic; the host (phone) reaches it via 127.0.0.1.
+    start-stop-daemon --start --background \
+        --pidfile /run/xvnc.pid --make-pidfile \
+        --stdout "$XVNC_LOGFILE" --stderr "$XVNC_LOGFILE" \
+        --exec /usr/bin/Xvnc -- \
+        $XVNC_DISPLAY \
+        -geometry $XVNC_GEOMETRY \
+        -depth 24 \
+        -SecurityTypes None \
+        -localhost no \
+        -rfbport $XVNC_PORT \
+        -AlwaysShared
+
+    # PulseAudio: system-wide-style daemon writing raw S16LE PCM to TCP 4713.
+    # We use --system=no with explicit XDG_RUNTIME_DIR so it runs as root
+    # without tripping pulse's "system mode is risky" refusal.
+    PULSE_RUNTIME_PATH="$PA_RUNTIME" \
+    XDG_RUNTIME_DIR="$PA_RUNTIME" \
+    start-stop-daemon --start --background \
+        --pidfile /run/pulseaudio.pid --make-pidfile \
+        --stdout "$PA_LOGFILE" --stderr "$PA_LOGFILE" \
+        --exec /usr/bin/pulseaudio -- \
+        --daemonize=no \
+        --disallow-exit \
+        --exit-idle-time=-1 \
+        --load="module-null-sink sink_name=podroid_sink rate=44100 channels=2 format=s16le" \
+        --load="module-simple-protocol-tcp source=podroid_sink.monitor record=true rate=44100 format=s16le channels=2 listen=0.0.0.0 port=$PA_PORT" \
+        --load="module-native-protocol-unix"
+
+    eend $?
+}
+
+stop() {
+    ebegin "Stopping X11 server"
+    start-stop-daemon --stop --pidfile /run/xvnc.pid 2>/dev/null
+    start-stop-daemon --stop --pidfile /run/pulseaudio.pid 2>/dev/null
+    eend 0
+}
