@@ -11,7 +11,7 @@ If something you maintain is included here and we missed you, please open an iss
 These projects make up the actual Linux system that runs inside Podroid.
 
 ### Linux kernel
-Podroid ships a custom build of the upstream Linux kernel (currently 6.6.87) configured specifically for OCI-compatible containers under QEMU TCG.
+Podroid ships a custom build of the upstream Linux kernel (currently 7.0.5) configured specifically for OCI-compatible containers under QEMU TCG.
 
 - Project: https://kernel.org
 - License: GNU General Public License v2.0
@@ -23,12 +23,14 @@ The guest userspace is a slightly customized Alpine Linux 3.23 root filesystem.
 - Project: https://alpinelinux.org
 - License: per-package (see Alpine's individual package licenses)
 
-### Container runtime
-The full rootless OCI stack ships pre-installed and pre-configured.
+### Container runtimes
+The full rootless OCI stack ships pre-installed and pre-configured. Docker and LXC are bundled alongside Podman for users who prefer them.
 
 | Component       | Role                                     | Project                                              |
 | --------------- | ---------------------------------------- | ---------------------------------------------------- |
 | **Podman**      | Daemonless container engine              | https://podman.io                                    |
+| **Docker**      | Classic daemon-based container engine    | https://www.docker.com                               |
+| **LXC**         | System containers (alternative to OCI)   | https://linuxcontainers.org                          |
 | **crun**        | Fast, low-memory OCI runtime             | https://github.com/containers/crun                   |
 | **netavark**    | Container network configuration tool     | https://github.com/containers/netavark               |
 | **aardvark-dns**| DNS resolver for netavark networks       | https://github.com/containers/aardvark-dns           |
@@ -42,14 +44,22 @@ All maintained by the containers community; primarily Apache-2.0 / GPL-2.0 licen
 - **busybox**: multi-call binary providing the initramfs userland and `/sbin/init` (https://busybox.net, GPL-2.0)
 - **OpenRC**: service manager running as PID 1 inside the VM (https://github.com/OpenRC/openrc, BSD-2-Clause)
 - **Dropbear SSH**: small SSH server (https://matt.ucc.asn.au/dropbear/dropbear.html, MIT-style)
+- **doas / sudo**: privilege escalation for `wheel`-group users (OpenBSD / https://www.sudo.ws)
 - **iproute2, iptables, nftables, bridge-utils**: networking utilities maintained by netfilter.org and the Linux community
+
+### X11 desktop stack
+The in-app X11 viewer is backed by these components running inside the VM. Podroid's Android side speaks RFB 3.8 directly (no third-party VNC client) and decodes the audio stream natively.
+
+- **TigerVNC** (`Xvnc`): combined X server + RFB server (https://tigervnc.org, GPL-2.0)
+- **PulseAudio**: audio server, exposing a null-sink monitor over `module-simple-protocol-tcp` (https://www.freedesktop.org/wiki/Software/PulseAudio/, LGPL-2.1)
+- **font-misc-misc, font-cursor-misc, ttf-dejavu**: minimum X11 fonts so apps render correctly out of the box
 
 ---
 
 ## Emulation
 
 ### QEMU
-QEMU provides the machine emulation that makes everything else possible. Podroid currently builds against QEMU 11.0.0-rc2, cross-compiled for arm64 Android.
+QEMU provides the machine emulation that makes everything else possible. Podroid currently builds against QEMU 11.0.0, cross-compiled for arm64 Android.
 
 - Project: https://www.qemu.org
 - Repository: https://gitlab.com/qemu-project/qemu

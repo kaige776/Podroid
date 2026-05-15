@@ -4,9 +4,9 @@
 
 # Podroid
 
-**Linux containers on Android. No root required.**
+**Linux containers and a Linux desktop on Android. No root.**
 
-A real Alpine Linux VM, a real Linux kernel, and rootless Podman, all in a single APK.
+A real Alpine VM, a real Linux kernel, rootless Podman, and an in-app X11 viewer, all in one APK.
 
 <p>
   <a href="https://github.com/ExTV/Podroid/releases"><img src="https://img.shields.io/github/v/release/ExTV/Podroid?include_prereleases&style=flat-square&label=release&color=blue" alt="Release" /></a>
@@ -19,320 +19,115 @@ A real Alpine Linux VM, a real Linux kernel, and rootless Podman, all in a singl
 
 <a href="https://extv.github.io/Podroid/"><strong>Website</strong></a> ·
 <a href="https://github.com/ExTV/Podroid/releases/latest"><strong>Download</strong></a> ·
-<a href="#-quick-start"><strong>Quick Start</strong></a> ·
-<a href="#-architecture"><strong>Architecture</strong></a> ·
-<a href="#-building-from-source"><strong>Build</strong></a>
+<a href="#quick-start"><strong>Quick Start</strong></a> ·
+<a href="#build"><strong>Build</strong></a>
 
 </div>
 
 ---
 
-## Why Podroid
+## What it is
 
-Termux gives you a Linux shell on Android, but it runs on the host kernel, and the namespaces, cgroups, and netfilter rules that real containers need are not there. Google's new Terminal app uses the Android Virtualization Framework, which is locked to recent Pixel devices and ships without a container runtime. `proot` is a chroot emulation; most Docker Hub images do not work reliably.
+Podroid boots a standard Alpine 3.23 VM under QEMU, with a custom Linux **7.0.5** kernel that has every option real containers need (overlayfs, netfilter, bridge, FUSE, binfmt_misc, …) compiled in. You get rootless Podman, Docker and LXC out of the box, plus an in-app X11 desktop for GUI apps, without root, without ADB tricks, on stock Android 9+.
 
-**Podroid runs an actual Alpine Linux VM with its own purpose-built Linux 6.6 kernel.** Every OCI image runs unmodified, every `podman` flag works, and your changes (`apk add`, `rc-update add`, custom configs) persist across reboots in a writable overlay.
+## Quick start
 
-|                                | **Podroid**     | Termux + proot  | Google Terminal | KVM / chroot           |
-| ------------------------------ | --------------- | --------------- | --------------- | ---------------------- |
-| Real Linux kernel              | ✅ (custom 6.6) | ❌              | ✅ (Debian)     | depends                |
-| Rootless Podman                | ✅              | ⚠️ unreliable    | ❌ manual       | ✅                     |
-| Works on stock Android 9+      | ✅              | ✅              | ❌ (Pixel only) | ❌ (root + recovery)   |
-| OCI images run unmodified      | ✅              | ❌              | ⚠️ manual setup  | ✅                     |
-| Persistent VM state            | ✅              | n/a             | ✅              | ✅                     |
-| Zero post-install setup        | ✅              | ❌              | ❌              | ❌                     |
-
----
-
-## ✨ Features
-
-<table>
-<tr>
-<td width="33%" valign="top">
-
-### Real Linux, real Podman
-
-- Standard Alpine 3.23 root filesystem
-- **OpenRC as PID 1**: `apk add docker; rc-service docker start` just works
-- Custom Linux 6.6.87 kernel with overlayfs, netfilter, bridge, FUSE, and 9p built-in
-- Rootless Podman + crun + netavark + slirp4netns
-- Persistent ext4 overlay survives reboots
-
-</td>
-<td width="33%" valign="top">
-
-### Built-in terminal
-
-- xterm-256color emulator (Termux engine)
-- 114 color themes · 13 curated fonts
-- CSI mouse tracking: `btop`, `htop`, `mc`, `nvim`, `tmux` work out of the box
-- Customizable extra-keys bar (ESC, TAB, CTRL, ALT, F1–F12, arrows, symbols)
-- Auto-resize with debounced SIGWINCH so the keyboard slide never flashes the prompt
-
-</td>
-<td width="33%" valign="top">
-
-### Networking & SSH
-
-- SLIRP user-mode networking: Internet access, no host changes
-- Live port-forward editor (host ↔ guest) over QEMU QMP
-- Built-in Dropbear SSH on `127.0.0.1:9922` (toggleable)
-- MASQUERADE / bridge built into the kernel for full container networking
-- Optional Downloads-folder share via virtio-9p
-
-</td>
-</tr>
-<tr>
-<td valign="top">
-
-### Adaptive UI
-
-- Material 3 with dynamic color
-- Phone, tablet, and landscape layouts
-- Animated boot-progress indicator
-- Live VM controls + status from a foreground service
-- In-app update checker
-
-</td>
-<td valign="top">
-
-### Performance
-
-- QEMU TCG with `thread=multi`, 256–512 MB translation cache
-- Dedicated I/O thread on virtio-blk (massive win for image pulls)
-- ZRAM swap at 50 % of guest RAM (lz4) → ~2× effective memory
-- `mitigations=off` in guest kernel: safe under TCG, ~5–15 % faster
-- 16 KB-page-aligned native binaries (Pixel 8/9/10+ ready)
-
-</td>
-<td valign="top">
-
-### Configurable
-
-- 1, 2, 4, 6, 8 vCPUs · 512 MB – 4 GB RAM
-- 2 GB – 64 GB persistent storage
-- Editable QEMU `-cpu` / `-accel` / `-machine` flags
-- Editable guest kernel command line
-- Per-app font size, theme, font, haptics, extras-bar layout
-
-</td>
-</tr>
-</table>
-
----
-
-## 🚀 Quick Start
-
-1. Download the latest APK from the [Releases page](https://github.com/ExTV/Podroid/releases/latest).
-2. Install and open Podroid. The first launch extracts the kernel, initramfs, and Alpine squashfs to app storage (~100 MB, one-time).
-3. Tap **Start VM**. Boot completes in 6–15 seconds depending on device.
-4. Tap **Open Terminal** when the indicator turns to *Ready*.
+1. Grab the APK from [Releases](https://github.com/ExTV/Podroid/releases/latest).
+2. Open Podroid → **Start VM** (boots in 6–30 s).
+3. Tap **Open Terminal** when status turns *Ready*.
 
 ```bash
-# Hello world
+# Containers
 podman run --rm alpine echo hello
+podman run -d -p 8080:80 nginx          # reachable from Android at 127.0.0.1:8080
 
-# Web server, accessible from Android browser at http://127.0.0.1:8080
-podman run -d -p 8080:80 nginx
-
-# Rootless interactive
-adduser -G wheel dev   # then: doas su - dev
-podman run --rm -it alpine sh
+# GUI apps: tap the monitor icon in the terminal to open the X11 viewer
+apk add firefox
+firefox &
 ```
 
-Default credentials: **root / podroid**. Change with `passwd`. Create a regular user with `adduser -G wheel <name>`; wheel-group members can use `doas` and `sudo`.
+Default login: **root / podroid**.
 
----
+## Features
 
-## 📋 Requirements
+- **Linux 7.0.5 kernel**, custom-built. Every container option compiled `=y`; the build fails if any get demoted.
+- **Podman, Docker and LXC pre-installed.** Rootless Podman wired up with crun + netavark + slirp4netns; `rc-service docker start` or `lxc-create …` work out of the box.
+- **OpenRC as PID 1.** `apk add` whatever you want, `rc-service ... start`, and it persists across reboots.
+- **In-app X11 viewer** (Xvnc + PulseAudio) with touch→mouse, soft-keyboard input, and PCM audio over loopback.
+- **Built-in terminal** powered by the Termux engine: xterm-256color, mouse tracking, debounced resize, customizable extra-keys row.
+- **Persistent ext4 overlay** on a read-only Alpine squashfs. Your installs and configs survive every reboot.
+- **Adaptive Material 3 UI** for phone, tablet and landscape, with dynamic color and a foreground service that keeps the VM alive.
 
-|              |                                                                  |
-| ------------ | ---------------------------------------------------------------- |
-| Architecture | ARM64 only (`aarch64`)                                           |
-| OS           | Android 9.0+ (API 28) · target API 36                            |
-| Storage      | ~200 MB app + chosen VM disk size (default 2 GB, max 64 GB)      |
-| Memory       | 2 GB device RAM recommended (the VM defaults to 512 MB allocation) |
+## Themes & fonts
 
----
+Open the terminal's **Quick Settings** (top sheet) for both pickers.
 
-## 🏗 Architecture
+- **122 bundled color themes:** Dracula, Nord, Solarized, Tokyo Night, Catppuccin, Gruvbox, Monokai, the full base16 family, and more.
+- **13 bundled monospace fonts:** JetBrains Mono, Fira Code, Cascadia Code, Source Code Pro, Hack, Iosevka, Victor Mono, Monofur, Anonymous Pro, DejaVu Sans Mono, Liberation Mono, Ubuntu Mono, Terminus.
+- **Bring your own font.** The Fonts picker has a **+ Add** chip; pick any `.ttf` from the system file chooser and it's instantly available. Long-press a custom font to remove it.
+- **Bring your own theme.** The Color-themes picker has an **Import** chip that accepts a URL to a Gogh-style `.properties` file. Long-press to remove.
+- Font size, color theme, font, dark/light and haptics: all change live, no VM restart.
 
-```
-                         ┌──────────────────────────────────────────────┐
-                         │                  Android App                 │
-   Compose UI            │  ┌──────────────┐  ┌────────────────────┐    │
-  Setup ▸ Home ▸         │  │ PodroidQemu  │  │ PodroidService     │    │
-  Terminal ▸ Settings    │  │   (engine)   │  │ (foreground + WL)  │    │
-                         │  └──────┬───────┘  └─────────┬──────────┘    │
-                         └─────────┼────────────────────┼───────────────┘
-                                   │                    │
-                          spawns   │                    │ owns notification
-                                   ▼                    ▼
-                         ┌──────────────────────────────────────────────┐
-                         │   QEMU 11.0.0-rc2  (TCG, ARMv8 virt machine) │
-                         └──┬─────────────────┬─────────────────┬───────┘
-                serial.sock │   terminal.sock │      ctrl.sock  │ qmp.sock
-                  (boot)    │      (hvc0)     │     (hvc1)      │ (control)
-                            ▼                 ▼                 ▼
-                        ┌─────────────────────────────────────────────┐
-                        │            Alpine Linux 3.23 VM             │
-                        │   /sbin/init (busybox) ▸ /etc/inittab ▸     │
-                        │              OpenRC (PID 1)                 │
-                        │                                             │
-                        │   /dev/vda  ext4 overlay (writable)         │
-                        │   /dev/vdb  squashfs (read-only base)       │
-                        │                                             │
-                        │   podroid-bootstrap  podroid-network        │
-                        │   podroid-resize     dropbear (optional)    │
-                        │   podroid-ready  ▸ "Ready!" marker          │
-                        │                                             │
-                        │   Podman + crun + netavark + slirp4netns    │
-                        └─────────────────────────────────────────────┘
-```
+## VM is fully configurable
 
-### Boot pipeline
+Everything below is editable from **Settings**:
 
-1. **PodroidApplication** copies kernel, initramfs, and Alpine squashfs from APK assets into `filesDir` on first launch (size-checked, idempotent).
-2. **QEMU** launches with `-M virt`, two virtio-blk drives (`/dev/vda` writable ext4, `/dev/vdb` read-only squashfs), four Unix sockets, and the user-configured RAM / CPU count.
-3. **`init-podroid`** (45 lines, runs in initramfs as PID 1) mounts the squashfs as the lower layer of an overlayfs, the ext4 image as the upper, and `switch_root`s into `/sbin/init`.
-4. **OpenRC** brings up the system via three custom services on the squashfs:
-   - `podroid-bootstrap`: cgroup v2, devpts/shm/mqueue, sysctl, ZRAM, mount-propagation tweaks for rootless containers
-   - `podroid-network`: eth0 up, `10.0.2.15/24`, `/etc/resolv.conf`
-   - `podroid-ready`: emits the boot-stage markers consumed by the Android UI
-5. **Android UI** sees `Ready!` on `serial.sock` → state = *Running* → the bridge connects directly to virtio-console (`/dev/hvc0`) and the terminal becomes interactive.
+- **Memory:** 512 MB · 1 GB · 2 GB · 4 GB
+- **CPU cores:** 1 · 2 · 4 · 6 · 8
+- **Persistent storage:** 2 GB to 64 GB (chosen at first setup; reset to change)
+- **Downloads folder sharing** (virtio-9p): toggle on/off; mounted inside the VM at `/mnt/downloads`
+- **SSH** (Dropbear on `127.0.0.1:9922`): toggle on/off
+- **Port forwards:** add/remove host ↔ guest TCP/UDP rules live, no VM restart (sent to QEMU over QMP)
+- **Advanced QEMU args:** full `-cpu` / `-accel` / RNG / device line, editable
+- **Advanced kernel cmdline:** extras appended to the boot cmdline
+- **Full App Reset:** wipe the persistent storage image and start over
 
-> Why `switch_root` and not `chroot`? `setns(CLONE_NEWNS)` inside `crun exec` resets `fs->root`, so a chroot pivot left `podman exec -it` looking at raw kernel paths and failing to open `/dev/ptmx`. `switch_root` reorganizes the kernel mount tree itself, so namespace operations land on a clean `/`. ([fix details](https://github.com/ExTV/Podroid/issues/17))
+RAM and CPU changes take effect on the next start; everything else is hot.
 
-### Project layout
+## Diagnostics
 
-```
-Podroid/
-├── app/                                  Android application (Jetpack Compose, Hilt)
-│   └── src/main/
-│       ├── java/com/excp/podroid/
-│       │   ├── engine/                   PodroidQemu, QmpClient, VmState
-│       │   ├── service/                  PodroidService (foreground)
-│       │   ├── data/repository/          DataStore-backed settings & port forwards
-│       │   └── ui/                       Compose screens + theme
-│       ├── jniLibs/arm64-v8a/            QEMU, podroid-bridge, libslirp, libtermux
-│       └── assets/                       kernel, initramfs, squashfs, fonts, themes
-├── init-podroid                          Minimal initramfs script (~45 lines)
-├── podroid-bridge.c                      Native PTY ↔ virtio-console relay
-├── Dockerfile                            Kernel + initramfs + QEMU build pipeline
-├── build-rootfs/                         Alpine squashfs build pipeline
-│   ├── Dockerfile.rootfs
-│   ├── build-rootfs.sh
-│   └── files/                            OpenRC services + helpers baked into the squashfs
-├── build-all.sh                          Unified build / deploy script
-├── podroid_kernel.config                 Custom kernel Kconfig fragment
-└── docs/                                 GitHub Pages site (extv.github.io/Podroid)
-```
+**Settings → Export Diagnostic Log** bundles app info, current settings, VM state, app logcat and the full QEMU console output into a single `log.txt` and shares it via the standard Android share sheet. Attach this to bug reports; it's almost always enough to diagnose a boot or container issue without ADB.
 
-### Native components
+## Requirements
 
-| Binary                      | Purpose                                                     |
-| --------------------------- | ----------------------------------------------------------- |
-| `libqemu-system-aarch64.so` | QEMU TCG engine (ELF executable shipped as a `.so`)         |
-| `libpodroid-bridge.so`      | PTY ↔ virtio-console relay with debounced SIGWINCH          |
-| `libtermux.so`              | Termux terminal emulator JNI (rebuilt for 16 KB pages)      |
-| `libslirp.so`               | SLIRP user-mode networking, statically linked into QEMU     |
+| | |
+|---|---|
+| Architecture | ARM64 only (`aarch64`) |
+| OS           | Android 9.0+ (API 28), targets API 36 |
+| Storage      | ~200 MB app + chosen VM disk (default 2 GB, max 64 GB) |
+| Memory       | 2 GB device RAM recommended (VM defaults to 512 MB) |
 
-All native binaries are built with `-Wl,-z,max-page-size=16384` for compatibility with 16 KB-page Android devices (mandatory on Android 13+).
-
----
-
-## 🔧 Building from source
-
-### Prerequisites
-
-- Docker 20.10+ (for kernel, initramfs, rootfs, and QEMU builds)
-- Android NDK r27c (for the bridge and Termux native libs)
-- Android SDK with platform 36 + build-tools
-
-### Build pipeline
+## Build
 
 ```bash
-git clone https://github.com/ExTV/Podroid.git
-cd Podroid
+git clone https://github.com/ExTV/Podroid.git && cd Podroid
 
-./build-all.sh kernel       # ~5–10 min, Docker-cached
-./build-all.sh initramfs    # kernel + minimal initramfs
-./build-all.sh rootfs       # Alpine squashfs (~30 s, Docker-cached)
-./build-all.sh qemu         # ~30 min first run, fully cached after
-./build-all.sh termux       # local NDK build of libtermux.so
-./gradlew installDebug      # build + install the APK on a connected device
-```
-
-Or just:
-
-```bash
-./build-all.sh all          # everything above, in order
-./build-all.sh deploy       # build + install + launch
+./build-all.sh all          # kernel + initramfs + rootfs + qemu + termux + APK
+./build-all.sh deploy       # the above, plus install + launch
 ./build-all.sh test         # boot validation: deploys APK, polls console.log for "Ready!"
 ```
 
-### Inspecting a running VM
+Individual stages: `kernel`, `initramfs`, `rootfs`, `qemu`, `termux`, `apk`. All container builds are Docker-cached.
 
-```bash
-adb logcat -s PodroidQemu                                                       # engine logs
-adb shell run-as com.excp.podroid.debug cat files/console.log                   # full VM serial log
-ssh root@127.0.0.1 -p 9922                                                      # if SSH is enabled (password: podroid)
-```
+**Prereqs:** Docker 20.10+, Android NDK r27c, Android SDK with platform 36 + build-tools.
 
----
+## Contributing
 
-## 🗺 Roadmap
+Contributions of every size are welcome: bug reports, kernel-config tweaks, new themes, UI polish, X11 input fixes, anything.
 
-- [x] Zero-config **Docker** and **LXC** (in addition to Podman) ✅ *1.1.7*
-- [x] `/proc/config.gz` shipped + complete container-kernel feature matrix ✅ *1.1.7*
-- [x] OpenRC as PID 1: `apk add docker; rc-service docker start` works and persists ✅ *1.1.6*
-- [x] Adaptive layouts for tablets and landscape phones ✅ *1.1.6*
-- [x] Issue #17: `podman exec -it` works rootful and rootless ✅ *1.1.6*
-- [x] Custom Linux 6.6 kernel with all required options forced built-in ✅ *1.1.4*
-- [x] virtio-console terminal channel separate from boot serial ✅ *1.1.4*
-- [x] User-loadable terminal fonts (Quick Settings → font picker → `+ Add` chip → pick any `.ttf` via the system file chooser; long-press a custom font to remove) ✅ *next*
+- **Pull requests:** read [CONTRIBUTING.md](CONTRIBUTING.md) first. Keep changes scoped, run `./build-all.sh test` before pushing, and explain *why* in the PR description.
+- **Bug reports:** [open an issue](https://github.com/ExTV/Podroid/issues/new) with your device + Android version, a short repro, and the diagnostic log (**Settings → Export Diagnostic Log** in the app).
+- **Diving into the engine:** [`skill.md`](skill.md) is the deep map: boot pipeline, every native binary, every quirk, every common task. AI assistants should read it before touching anything.
 
-Have an idea? [Open an issue](https://github.com/ExTV/Podroid/issues/new).
+## Credits
 
----
+| | |
+|---|---|
+| [QEMU](https://www.qemu.org)                   | Machine emulation |
+| [Termux](https://github.com/termux/termux-app) | Terminal emulator engine |
 
-## 🤝 Contributing
+Full list (Linux, Alpine, Podman, TigerVNC, PulseAudio, Limbo and more) in [CREDITS.md](CREDITS.md).
 
-Pull requests are welcome. Before opening a PR, please read [**CONTRIBUTING.md**](CONTRIBUTING.md) and skim [**skill.md**](skill.md). It documents the boot pipeline, every native binary, and the design quirks you need to know to make changes that don't regress.
+## License
 
-Found a bug? Please include the contents of `console.log`:
-
-```bash
-adb shell run-as com.excp.podroid.debug cat files/console.log
-```
-
-### For AI assistants
-
-If you're using Claude Code, Cursor, Copilot, or another assistant, point it at [`skill.md`](skill.md) before making any change. It covers the full architecture, every constant, every quirk, and every common task.
-
----
-
-## 🙏 Credits
-
-Podroid stands on the shoulders of giants:
-
-| Project                                                              | Role                                                |
-| -------------------------------------------------------------------- | --------------------------------------------------- |
-| [QEMU](https://www.qemu.org)                                         | Machine emulation, the heart of the VM              |
-| [Linux](https://kernel.org)                                          | Custom 6.6.87 kernel                                |
-| [Alpine Linux](https://alpinelinux.org)                              | Tiny, fast Linux distribution                       |
-| [Podman](https://podman.io) · [crun](https://github.com/containers/crun) | Rootless container runtime                      |
-| [Termux](https://github.com/termux/termux-app)                       | Terminal emulator engine                            |
-| [Limbo PC Emulator](https://github.com/limboemu/limbo)               | Original groundwork for QEMU on Android             |
-
-See [CREDITS.md](CREDITS.md) for the full list of upstream projects, libraries, and contributors.
-
----
-
-## 📄 License
-
-Podroid is released under the [GNU General Public License v2.0](LICENSE). QEMU, the Linux kernel, Alpine, and Podman are each distributed under their respective upstream licenses.
-
-<div align="center">
-<sub>Built with care by <a href="https://github.com/ExTV">@ExTV</a> · <a href="https://extv.github.io/Podroid/">extv.github.io/Podroid</a></sub>
-</div>
+[GNU General Public License v2.0](LICENSE). QEMU, Linux, Alpine, Podman and the rest are distributed under their respective upstream licenses.

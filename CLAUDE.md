@@ -35,10 +35,11 @@ All components are coordinated by `build-all.sh`:
 **Monitor VM boot:**
 ```bash
 adb logcat -s PodroidQemu
-adb shell run-as com.excp.podroid.debug cat files/console.log
+adb shell run-as com.excp.podroid cat files/console.log         # release build
+adb shell run-as com.excp.podroid.debug cat files/console.log   # debug build
 ```
 
-**All shipped builds are `debug` builds** — there's no Google Play / release signing certificate, so `assembleRelease` is never run. Consequence: `BuildConfig.VERSION_NAME` ends in `-debug` (e.g. `1.1.7-debug`), the `applicationId` is `com.excp.podroid.debug`, and any code that compares the local version string against an upstream release tag must strip the `-debug` suffix first (see `UpdateRepository.checkForUpdate`).
+**Shipped builds are signed `release` builds** (1.1.9+). `assembleRelease` is wired up via `signingConfigs.release` in `app/build.gradle.kts`, fed by the `PODROID_RELEASE_STORE_FILE` / `_PASSWORD` / `_KEY_ALIAS` / `_KEY_PASSWORD` Gradle properties (keystore: `podroid-release.jks`). For release builds: `applicationId = com.excp.podroid`, `BuildConfig.VERSION_NAME = "1.1.9"`. Debug builds still get `applicationIdSuffix = ".debug"` and `versionNameSuffix = "-debug"` — so `com.excp.podroid.debug` / `1.1.9-debug` for `assembleDebug`. Any code comparing the local version string against an upstream release tag must strip an optional `-debug` suffix (see `UpdateRepository.checkForUpdate`).
 
 Native binaries require 16KB page alignment (`-Wl,-z,max-page-size=16384`) — mandatory on Android 13+.
 
