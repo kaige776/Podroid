@@ -441,6 +441,20 @@ class QemuEngine @Inject constructor(
         }
     }
 
+    override suspend fun addPortForward(rule: PortForwardRule) {
+        if (_state.value !is VmState.Running) return
+        val qmp = qmpClient ?: return
+        runCatching { qmp.addPortForward(rule.hostPort, rule.guestPort, rule.protocol) }
+            .onFailure { Log.w(TAG, "QMP addPortForward failed for $rule", it) }
+    }
+
+    override suspend fun removePortForward(rule: PortForwardRule) {
+        if (_state.value !is VmState.Running) return
+        val qmp = qmpClient ?: return
+        runCatching { qmp.removePortForward(rule.hostPort, rule.protocol) }
+            .onFailure { Log.w(TAG, "QMP removePortForward failed for $rule", it) }
+    }
+
     @Synchronized
     private fun cleanup() {
         if (cleanedUp.getAndSet(true)) return

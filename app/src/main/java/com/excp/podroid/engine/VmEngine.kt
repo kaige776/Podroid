@@ -43,6 +43,15 @@ interface VmEngine {
 
     /** Create (or return the pre-started) terminal session wired to the bridge. */
     fun createTerminalSession(client: TerminalSessionClient): TerminalSession
+
+    /**
+     * Apply a port-forward rule live to a running VM. No-op when state is not
+     * Running — caller is expected to include the rule in [start]'s argument
+     * list for the cold-start path. EngineHolder routes DataStore-flow diffs
+     * through these methods.
+     */
+    suspend fun addPortForward(rule: PortForwardRule)
+    suspend fun removePortForward(rule: PortForwardRule)
 }
 
 /**
