@@ -203,6 +203,23 @@ object AvfReflect {
     fun run(vm: Any) { invokeDecl(vm, "run") }
     fun stop(vm: Any) { runCatching { invokeDecl(vm, "stop") } }
 
+    /**
+     * Opens a vsock connection from the host (Android) to a port the guest is
+     * listening on. Returns a ParcelFileDescriptor whose underlying FD is a
+     * connected AF_VSOCK socket — wrap it in
+     * [android.os.ParcelFileDescriptor.AutoCloseInputStream]/
+     * [android.os.ParcelFileDescriptor.AutoCloseOutputStream] for I/O.
+     *
+     * The guest reaches us at CID 2 (host); our peer is the VM at whatever CID
+     * AVF assigned. AVF's connectVsock handles the CID lookup internally; we
+     * pass only the port.
+     */
+    fun connectVsock(vm: Any, port: Long): android.os.ParcelFileDescriptor {
+        val m = vm.javaClass.getDeclaredMethod("connectVsock", Long::class.javaPrimitiveType!!)
+            .apply { isAccessible = true }
+        return m.invoke(vm, port) as android.os.ParcelFileDescriptor
+    }
+
     fun consoleOutput(vm: Any): java.io.InputStream =
         invokeDecl(vm, "getConsoleOutput") as java.io.InputStream
 
