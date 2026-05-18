@@ -16,6 +16,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,6 +32,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -60,6 +63,7 @@ fun HomeScreen(
     val updateInfo by viewModel.updateInfo.collectAsStateWithLifecycle()
     val meta by viewModel.meta.collectAsStateWithLifecycle()
     val uptimeTick by viewModel.uptimeTicker.collectAsStateWithLifecycle()
+    val showAvfHint by viewModel.showAvfHint.collectAsStateWithLifecycle()
 
     val isRunning  = vmState is VmState.Running
     val isStarting = vmState is VmState.Starting
@@ -119,6 +123,9 @@ fun HomeScreen(
                             .padding(end = PodroidTokens.Spacing.XL2)
                             .verticalScroll(rememberScrollState()),
                     ) {
+                        if (showAvfHint) {
+                            AvfHintBanner(onDismiss = { viewModel.dismissAvfHint() })
+                        }
                         HomeStatusBlock(isStarting, isRunning, vmState, bootStage, meta, uptimeLabel)
                         HomeDataSection(isRunning, vmState, meta, phoneIp)
                     }
@@ -148,6 +155,9 @@ fun HomeScreen(
                     verticalArrangement = Arrangement.spacedBy(PodroidTokens.Spacing.MD),
                 ) {
                     Spacer(Modifier.height(PodroidTokens.Spacing.XL))
+                    if (showAvfHint) {
+                        AvfHintBanner(onDismiss = { viewModel.dismissAvfHint() })
+                    }
                     HomeStatusBlock(isStarting, isRunning, vmState, bootStage, meta, uptimeLabel)
                     HomeDataSection(isRunning, vmState, meta, phoneIp)
                     Spacer(Modifier.weight(1f))
@@ -161,6 +171,49 @@ fun HomeScreen(
                         onOpenTerminal = onNavigateToTerminal,
                     )
                     Spacer(Modifier.height(PodroidTokens.Spacing.XL))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AvfHintBanner(onDismiss: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = PodroidTokens.Spacing.MD),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(PodroidTokens.Spacing.MD),
+            verticalArrangement = Arrangement.spacedBy(PodroidTokens.Spacing.SM),
+        ) {
+            Text(
+                "AVF (KVM) available on this device",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                "Run these once to unlock hardware acceleration:",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                text = "adb shell pm grant com.excp.podroid \\\n" +
+                    "  android.permission.MANAGE_VIRTUAL_MACHINE\n" +
+                    "adb shell pm grant com.excp.podroid \\\n" +
+                    "  android.permission.USE_CUSTOM_VIRTUAL_MACHINE",
+                fontFamily = FontFamily.Monospace,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Row(
+                horizontalArrangement = Arrangement.End,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text("Dismiss")
                 }
             }
         }

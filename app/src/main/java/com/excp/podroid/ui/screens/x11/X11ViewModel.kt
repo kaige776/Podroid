@@ -6,7 +6,7 @@ package com.excp.podroid.ui.screens.x11
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.excp.podroid.engine.PodroidQemu
+import com.excp.podroid.engine.VmEngine
 import com.excp.podroid.engine.VmState
 import com.excp.podroid.x11.AudioStreamer
 import com.excp.podroid.x11.VncClient
@@ -33,10 +33,10 @@ sealed interface X11ConnectionState {
 
 @HiltViewModel
 class X11ViewModel @Inject constructor(
-    val podroidQemu: PodroidQemu,
+    val engine: VmEngine,
 ) : ViewModel() {
 
-    val vmState: StateFlow<VmState> = podroidQemu.state
+    val vmState: StateFlow<VmState> = engine.state
 
     private val _connection = MutableStateFlow<X11ConnectionState>(X11ConnectionState.Disconnected)
     val connection: StateFlow<X11ConnectionState> = _connection.asStateFlow()
@@ -50,6 +50,12 @@ class X11ViewModel @Inject constructor(
      * blitted, producing transient horizontal tearing visible as banding).
      */
     val framebuffer: IntArray = IntArray(X11Constants.FB_WIDTH * X11Constants.FB_HEIGHT)
+
+    // Scratch buffer the RFB decoder writes into off the UI thread. We swap
+    // it into [framebuffer] under a short lock so the UI never blocks on a
+    // socket read (holding the framebuffer lock across recvfrom deadlocks
+    // the main thread → ANR on screen open).
+    private val scratch: IntArray = IntArray(X11Constants.FB_WIDTH * X11Constants.FB_HEIGHT)
 
     private val _frameCounter = MutableStateFlow(0)
     val frameCounter: StateFlow<Int> = _frameCounter.asStateFlow()
@@ -77,16 +83,17 @@ class X11ViewModel @Inject constructor(
                     audio.start(viewModelScope)
 
                     while (isActive) {
-                        // Lock the framebuffer for the full RFB rect decode so the
-                        // UI thread can't observe a half-written frame. The lock
-                        // is uncontended ~99% of the time (UI grabs it only during
-                        // setPixels, which is fast).
+                        // Decode into scratch off-lock so a blocking socket read
+                        // never holds the framebuffer lock (would deadlock the
+                        // UI thread → ANR). Swap under a short lock; the copy
+                        // is fast and uncontended.
+                        VncClient.readFramebufferUpdate(
+                            inp = inp,
+                            targetArgb = scratch,
+                            stride = X11Constants.FB_WIDTH,
+                        )
                         synchronized(framebuffer) {
-                            VncClient.readFramebufferUpdate(
-                                inp = inp,
-                                targetArgb = framebuffer,
-                                stride = X11Constants.FB_WIDTH,
-                            )
+                            System.arraycopy(scratch, 0, framebuffer, 0, framebuffer.size)
                         }
                         _frameCounter.value = _frameCounter.value + 1
                         VncClient.requestFramebufferUpdate(out, incremental = true)

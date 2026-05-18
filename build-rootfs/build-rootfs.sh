@@ -95,10 +95,11 @@ cp /work/files/etc/init.d/podroid-ready     "$ROOTFS/etc/init.d/"
 cp /work/files/etc/init.d/podroid-x11       "$ROOTFS/etc/init.d/"
 chmod +x "$ROOTFS/etc/init.d/podroid-"*
 
-# Copy /usr/local/bin scripts (resize daemon + login wrapper)
+# Copy /usr/local/bin scripts (resize daemon + login wrapper + getty selector)
 mkdir -p "$ROOTFS/usr/local/bin"
 cp /work/files/usr/local/bin/podroid-resize "$ROOTFS/usr/local/bin/"
 cp /work/files/usr/local/bin/podroid-login  "$ROOTFS/usr/local/bin/"
+cp /work/files/usr/local/bin/podroid-getty  "$ROOTFS/usr/local/bin/"
 chmod +x "$ROOTFS/usr/local/bin/podroid-"*
 mkdir -p "$ROOTFS/etc/conf.d"
 cp /work/files/etc/conf.d/podroid "$ROOTFS/etc/conf.d/"

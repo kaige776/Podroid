@@ -3,7 +3,7 @@
  * Copyright (C) 2024-2026 Podroid contributors
  *
  * Tiny shim for the seven log methods every Termux TerminalSessionClient and
- * TerminalViewClient implementation has to override. Both PodroidQemu's proxy
+ * TerminalViewClient implementation has to override. Both QemuEngine's proxy
  * client and TerminalViewModel's clients used to stamp the same boilerplate
  * twice — this is the single source of truth.
  */

@@ -88,6 +88,56 @@ RAM and CPU changes take effect on the next start; everything else is hot.
 
 **Settings → Export Diagnostic Log** bundles app info, current settings, VM state, app logcat and the full QEMU console output into a single `log.txt` and shares it via the standard Android share sheet. Attach this to bug reports; it's almost always enough to diagnose a boot or container issue without ADB.
 
+**Settings → About → AVF (pKVM) diagnostic** runs a six-line probe of the Android Virtualization Framework on your device — feature flag, permissions, system service reachability — and a smoke-start of a minimal VM to confirm the path actually works end-to-end. Tap it before opening an issue about KVM not engaging.
+
+## Hardware acceleration (KVM / pKVM)
+
+By default Podroid emulates the guest CPU in software (QEMU TCG). On the small set of Android devices that ship Google's **pKVM** (Pixel 8/9/10, a few others), Podroid can run the same VM under the **Android Virtualization Framework** (AVF) for near-native CPU performance — boot times drop from ~15 s to under 3 s, and CPU-bound container workloads run at host speed.
+
+This requires three things, all under your control:
+
+### 1. Check that your phone ships pKVM
+
+```bash
+adb shell pm list features | grep virtualization_framework
+adb shell getprop ro.boot.hypervisor.vm.supported
+adb shell getprop ro.boot.hypervisor.protected_vm.supported
+```
+
+If the first line returns `feature:android.software.virtualization_framework` and the two getprop lines return `1`, your device is supported. If any are empty, it's not — Podroid will silently fall back to QEMU/TCG and nothing else in this section applies.
+
+Confirmed support: Pixel 8/8 Pro, Pixel 9/9 Pro/Pro XL, Pixel 10/10 Pro/Pro XL, Pixel Fold, Pixel Tablet.
+
+### 2. Grant the two AVF permissions via ADB
+
+The `MANAGE_VIRTUAL_MACHINE` and `USE_CUSTOM_VIRTUAL_MACHINE` permissions are `signature|preinstalled|development` — they can't be granted from the in-app UI, but `pm grant` works once per install:
+
+```bash
+adb shell pm grant com.excp.podroid android.permission.MANAGE_VIRTUAL_MACHINE
+adb shell pm grant com.excp.podroid android.permission.USE_CUSTOM_VIRTUAL_MACHINE
+```
+
+The grants persist across reboots and in-place app updates. They survive `adb install -r` but **not** `adb install -d` followed by a full uninstall+reinstall.
+
+### 3. Verify and select the backend in-app
+
+Open **Settings → About → AVF (pKVM) diagnostic**. The dialog's bottom line should read:
+
+```
+Smoke test:
+SUCCESS: AVF accepted our config, VM started + stopped cleanly.
+```
+
+Then **Settings → Advanced → Backend** picks how Podroid chooses at startup:
+
+- **Auto** (default) — use AVF if the feature + permissions are both present, otherwise QEMU. The right choice for everyone.
+- **AVF (KVM)** — force AVF. Useful for debugging; the VM will error explicitly if AVF rejects your config rather than silently falling back.
+- **QEMU (TCG)** — force software emulation even on a pKVM device. Useful for reproducing user reports or testing the slow path.
+
+Changing the backend requires a VM stop + restart (same as RAM/CPU changes).
+
+If your phone has the feature but you haven't run the `pm grant` commands yet, the home screen shows a one-time hint banner with the commands ready to copy.
+
 ## Troubleshooting
 
 ### "QEMU crashed (SIGKILL)" / VM dies when I switch to another app

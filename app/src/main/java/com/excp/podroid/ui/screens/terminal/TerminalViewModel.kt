@@ -40,7 +40,7 @@ import android.view.MotionEvent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.excp.podroid.data.repository.SettingsRepository
-import com.excp.podroid.engine.PodroidQemu
+import com.excp.podroid.engine.VmEngine
 import com.excp.podroid.engine.VmState
 import com.excp.podroid.util.LogProxy
 import com.termux.terminal.TerminalEmulator
@@ -62,12 +62,12 @@ import javax.inject.Inject
 @HiltViewModel
 class TerminalViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val qemu: PodroidQemu,
+    private val engine: VmEngine,
     private val settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
-    val vmState: StateFlow<VmState> = qemu.state
-    val bootStage: StateFlow<String> = qemu.bootStage
+    val vmState: StateFlow<VmState> = engine.state
+    val bootStage: StateFlow<String> = engine.bootStage
     val terminalFontSize: StateFlow<Int> = settingsRepository.terminalFontSize
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 20)
 
@@ -636,7 +636,13 @@ class TerminalViewModel @Inject constructor(
     fun createSession() {
         if (attached) return
 
-        val sess = qemu.createTerminalSession(sessionClient)
+        val sess = runCatching { engine.createTerminalSession(sessionClient) }
+            .onFailure { e ->
+                // AvfEngine throws UnsupportedOperationException until Task 11
+                // wires the AVF bridge. Don't crash the UI — leave session null.
+                android.util.Log.w(TAG, "createTerminalSession failed on ${engine.backendId}: ${e.message}")
+            }
+            .getOrNull() ?: return
         session = sess
         attached = true
     }
@@ -762,9 +768,9 @@ class TerminalViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         // Drop the proxy's pointer to this dead ViewModel — otherwise the singleton
-        // PodroidQemu keeps forwarding session events into a tombstoned client.
-        if (qemu.sessionClientDelegate === sessionClient) {
-            qemu.sessionClientDelegate = null
+        // VmEngine keeps forwarding session events into a tombstoned client.
+        if (engine.sessionClientDelegate === sessionClient) {
+            engine.sessionClientDelegate = null
         }
         attached = false
     }

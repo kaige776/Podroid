@@ -18,16 +18,31 @@ start() {
         [ -n "$NETIF" ] && break
         sleep 0.05
     done
-    if [ -n "$NETIF" ]; then
-        ip link set "$NETIF" up
-        ip addr add 10.0.2.15/24 dev "$NETIF" 2>/dev/null
-        ip route add default via 10.0.2.2 dev "$NETIF" 2>/dev/null
-        echo "Network found" > /dev/console
-    else
+    if [ -z "$NETIF" ]; then
         eend 1 "no network interface"
         return 1
     fi
-    printf 'nameserver 10.0.2.3\nnameserver 8.8.8.8\nnameserver 1.1.1.1\n' \
-        > /etc/resolv.conf
+    ip link set "$NETIF" up
+
+    if grep -q 'podroid\.tty=ttyS0' /proc/cmdline 2>/dev/null; then
+        # AVF backend: crosvm wires the guest to a TAP that Android's tethering
+        # manager runs DHCP on. The lease decides our IP / gateway / DNS — the
+        # SLIRP-style 10.0.2.15 hardcode won't sit on the right subnet (on
+        # IPv6-only cellular w/ CLAT it lands on 192.0.0.x). udhcpc applies
+        # everything via the default /usr/share/udhcpc/default.script.
+        udhcpc -i "$NETIF" -t 8 -T 1 -A 1 -q -f -n 2>/dev/null || \
+            udhcpc -i "$NETIF" -q -f -n 2>/dev/null || true
+        # Belt-and-suspenders: if DHCP didn't write resolv.conf (busybox
+        # variants differ), drop public DNS so apk/curl don't die silently.
+        [ -s /etc/resolv.conf ] || printf 'nameserver 8.8.8.8\nnameserver 1.1.1.1\n' > /etc/resolv.conf
+    else
+        # QEMU/TCG backend: SLIRP's built-in DHCP also exists but hardcoding
+        # is faster + matches every existing user's setup. Original behavior.
+        ip addr add 10.0.2.15/24 dev "$NETIF" 2>/dev/null
+        ip route add default via 10.0.2.2 dev "$NETIF" 2>/dev/null
+        printf 'nameserver 10.0.2.3\nnameserver 8.8.8.8\nnameserver 1.1.1.1\n' \
+            > /etc/resolv.conf
+    fi
+    echo "Network found" > /dev/console
     eend 0
 }

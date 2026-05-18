@@ -137,6 +137,11 @@ dependencies {
     implementation(project(":terminal-emulator"))
     implementation(project(":terminal-view"))
 
+    // HiddenApiBypass — exempts our process from Android 14+ reflection filtering
+    // so we can call the @SystemApi VirtualMachineManager constructors via
+    // reflection on devices where the dev-grant path holds (Pixel 8+ etc.).
+    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:6.1")
+
     // Testing
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

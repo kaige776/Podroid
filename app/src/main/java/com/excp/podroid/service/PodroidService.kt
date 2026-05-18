@@ -26,7 +26,8 @@ import com.excp.podroid.MainActivity
 import com.excp.podroid.R
 import com.excp.podroid.data.repository.PortForwardRepository
 import com.excp.podroid.data.repository.SettingsRepository
-import com.excp.podroid.engine.PodroidQemu
+import com.excp.podroid.engine.VmConfig
+import com.excp.podroid.engine.VmEngine
 import com.excp.podroid.engine.VmState
 import com.excp.podroid.util.NetworkUtils
 import com.excp.podroid.x11.X11Constants
@@ -38,7 +39,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class PodroidService : Service() {
 
-    @Inject lateinit var podroidQemu: PodroidQemu
+    @Inject lateinit var engine: VmEngine
     @Inject lateinit var portForwardRepository: PortForwardRepository
     @Inject lateinit var settingsRepository: SettingsRepository
 
@@ -78,7 +79,7 @@ class PodroidService : Service() {
                 launchPodroid()
             }
             ACTION_STOP -> {
-                podroidQemu.stop()
+                engine.stop()
             }
         }
         return START_NOT_STICKY
@@ -94,9 +95,9 @@ class PodroidService : Service() {
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
         // App swiped from recents — stop the VM gracefully
-        if (podroidQemu.state.value is VmState.Running ||
-            podroidQemu.state.value is VmState.Starting) {
-            podroidQemu.stop()
+        if (engine.state.value is VmState.Running ||
+            engine.state.value is VmState.Starting) {
+            engine.stop()
         }
     }
 
@@ -134,7 +135,7 @@ class PodroidService : Service() {
 
     /** Updates the notification text from a combined view of state + bootStage. */
     private suspend fun observeStateForNotification() {
-        combine(podroidQemu.state, podroidQemu.bootStage) { state, stage -> state to stage }
+        combine(engine.state, engine.bootStage) { state, stage -> state to stage }
             .collect { (state, stage) ->
                 when (state) {
                     is VmState.Running  -> updateNotification("VM is running")
@@ -151,7 +152,7 @@ class PodroidService : Service() {
      */
     private suspend fun observeStateForShutdown() {
         var seenActive = false
-        podroidQemu.state.collect { state ->
+        engine.state.collect { state ->
             when (state) {
                 is VmState.Starting, is VmState.Running -> seenActive = true
                 is VmState.Stopped, is VmState.Idle, is VmState.Error -> {
@@ -190,7 +191,7 @@ class PodroidService : Service() {
                         rules.add(com.excp.podroid.data.repository.PortForwardRule(X11Constants.AUDIO_PORT, X11Constants.AUDIO_PORT, "tcp"))
                     }
 
-                    val config = com.excp.podroid.engine.PodroidQemu.LaunchConfig(
+                    val config = VmConfig(
                         ramMb = settingsRepository.getVmRamMbSnapshot(),
                         cpus = settingsRepository.getVmCpusSnapshot(),
                         sshEnabled = sshEnabled,
@@ -200,7 +201,7 @@ class PodroidService : Service() {
                         qemuExtraArgs = settingsRepository.getQemuExtraArgsSnapshot(),
                         kernelExtraCmdline = settingsRepository.getKernelExtraCmdlineSnapshot(),
                     )
-                    podroidQemu.start(rules, config)
+                    engine.start(rules, config)
                 } catch (e: Exception) {
                     Log.e(TAG, "QEMU failed to start", e)
                 }

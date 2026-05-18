@@ -56,7 +56,13 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.excp.podroid.BuildConfig
 import com.excp.podroid.data.repository.PortForwardRule
+import com.excp.podroid.engine.EngineSelection
 import com.excp.podroid.engine.VmState
+import com.excp.podroid.engine.avf.AvfDiagnostics
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.withContext
 import com.excp.podroid.ui.components.AdaptiveContainer
 import com.excp.podroid.ui.components.PodroidDestructiveButton
 import com.excp.podroid.ui.components.PodroidGhostButton
@@ -83,6 +89,10 @@ fun SettingsScreen(
     var advancedExpanded by remember { mutableStateOf(false) }
     var showAddDialog by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
+    var avfReportText by remember { mutableStateOf<String?>(null) }
+    var avfRunning by remember { mutableStateOf(false) }
+    val avfScope = rememberCoroutineScope()
+    val ctx = LocalContext.current
     val vmNotRunning = vmState !is VmState.Running && vmState !is VmState.Starting
 
     Scaffold(
@@ -208,6 +218,33 @@ fun SettingsScreen(
                     onClick = { advancedExpanded = !advancedExpanded },
                 )
                 if (advancedExpanded) {
+                    PodroidSectionLabel("Backend")
+                    Spacer(Modifier.height(PodroidTokens.Spacing.SM))
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.padding(horizontal = PodroidTokens.Spacing.MD),
+                    ) {
+                        EngineSelection.entries.forEach { sel ->
+                            FilterChip(
+                                selected = ui.engineSelection == sel,
+                                onClick = { viewModel.setEngineSelection(sel) },
+                                enabled = vmNotRunning,
+                                label = {
+                                    Text(
+                                        when (sel) {
+                                            EngineSelection.AUTO -> "Auto"
+                                            EngineSelection.AVF  -> "AVF (KVM)"
+                                            EngineSelection.QEMU -> "QEMU (TCG)"
+                                        },
+                                        fontFamily = FontFamily.Monospace,
+                                    )
+                                },
+                                shape = RoundedCornerShape(PodroidTokens.Radius.Chip),
+                                colors = PodroidChipColors(),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(PodroidTokens.Spacing.MD))
                     AdvancedFieldsBlock(
                         qemuExtraArgs = ui.qemuExtraArgs,
                         kernelExtraCmdline = ui.kernelExtraCmdline,
@@ -230,6 +267,26 @@ fun SettingsScreen(
                     text = "Export diagnostic log",
                     onClick = { viewModel.exportConsoleLogs() },
                 )
+                Spacer(Modifier.height(PodroidTokens.Spacing.SM))
+                PodroidGhostButton(
+                    text = if (avfRunning) "Running AVF diagnostic…" else "AVF (pKVM) diagnostic",
+                    onClick = {
+                        if (avfRunning) return@PodroidGhostButton
+                        avfRunning = true
+                        avfReportText = "Probing…"
+                        avfScope.launch {
+                            val probe = AvfDiagnostics.probe(ctx)
+                            val smoke = if (probe.featureSupported && probe.managePermissionGranted) {
+                                withContext(Dispatchers.IO) { AvfDiagnostics.runSmokeTest(ctx) }
+                            } else null
+                            avfReportText = probe.copy(
+                                smokeTestResult = smoke,
+                                activeBackend = viewModel.activeBackendId(),
+                            ).pretty()
+                            avfRunning = false
+                        }
+                    },
+                )
 
                 Spacer(Modifier.height(PodroidTokens.Spacing.XL2))
             }
@@ -242,6 +299,23 @@ fun SettingsScreen(
             onAdd = { hostPort, guestPort, protocol ->
                 viewModel.addPortForward(hostPort, guestPort, protocol)
                 showAddDialog = false
+            },
+        )
+    }
+
+    avfReportText?.let { report ->
+        AlertDialog(
+            onDismissRequest = { avfReportText = null },
+            title = { Text("AVF (pKVM) diagnostic") },
+            text = {
+                Text(
+                    text = report,
+                    fontFamily = FontFamily.Monospace,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { avfReportText = null }) { Text("Close") }
             },
         )
     }

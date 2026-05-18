@@ -8,7 +8,7 @@ import com.excp.podroid.data.repository.PortForwardRepository
 import com.excp.podroid.data.repository.SettingsRepository
 import com.excp.podroid.data.repository.UpdateInfo
 import com.excp.podroid.data.repository.UpdateRepository
-import com.excp.podroid.engine.PodroidQemu
+import com.excp.podroid.engine.VmEngine
 import com.excp.podroid.engine.VmState
 import com.excp.podroid.service.PodroidService
 import com.excp.podroid.util.NetworkUtils
@@ -51,16 +51,16 @@ data class HomeMeta(
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val podroidQemu: PodroidQemu,
+    private val engine: VmEngine,
     private val settingsRepository: SettingsRepository,
     private val portForwardRepository: PortForwardRepository,
     private val updateRepository: UpdateRepository,
 ) : ViewModel() {
 
-    val vmState: StateFlow<VmState> = podroidQemu.state
+    val vmState: StateFlow<VmState> = engine.state
         .stateIn(viewModelScope, SharingStarted.Eagerly, VmState.Idle)
 
-    val bootStage: StateFlow<String> = podroidQemu.bootStage
+    val bootStage: StateFlow<String> = engine.bootStage
         .stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
     /** Aggregated metadata for the Home data sections. */
@@ -102,6 +102,23 @@ class HomeViewModel @Inject constructor(
     private val _updateInfo = MutableStateFlow<UpdateInfo?>(null)
     val updateInfo: StateFlow<UpdateInfo?> = _updateInfo.asStateFlow()
 
+    /**
+     * True when AVF (pKVM) is present on this device but neither
+     * MANAGE_VIRTUAL_MACHINE nor USE_CUSTOM_VIRTUAL_MACHINE have been granted
+     * yet — and the user hasn't dismissed the banner.
+     *
+     * The AVF probe is fast (no IPC, no binder), so we derive it via a
+     * simple map on the dismissed flow rather than a heavy combine.
+     */
+    private val _avfProbe = com.excp.podroid.engine.avf.AvfDiagnostics.probe(context)
+    val showAvfHint: StateFlow<Boolean> = settingsRepository.avfHintDismissed
+        .map { dismissed ->
+            _avfProbe.featureSupported &&
+                !_avfProbe.managePermissionGranted &&
+                !dismissed
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     private var runningSinceMs: Long? = null
 
     init {
@@ -109,7 +126,7 @@ class HomeViewModel @Inject constructor(
         // Maintain runningSinceMs for the synchronous read path used by uptime formatter.
         viewModelScope.launch {
             var lastWasRunning = false
-            podroidQemu.state.collect { state ->
+            engine.state.collect { state ->
                 val nowRunning = state is VmState.Running
                 if (nowRunning && !lastWasRunning) runningSinceMs = System.currentTimeMillis()
                 if (!nowRunning) runningSinceMs = null
@@ -149,6 +166,10 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch { updateRepository.dismissUpdate(version) }
     }
 
+    fun dismissAvfHint() {
+        viewModelScope.launch { settingsRepository.setAvfHintDismissed(true) }
+    }
+
     fun startPodroid() = PodroidService.start(context)
 
     fun stopVm() = PodroidService.stop(context)
@@ -157,7 +178,7 @@ class HomeViewModel @Inject constructor(
         PodroidService.stop(context)
         viewModelScope.launch {
             withTimeoutOrNull(10_000) {
-                podroidQemu.state.first { state ->
+                engine.state.first { state ->
                     state is VmState.Stopped || state is VmState.Idle || state is VmState.Error
                 }
             }

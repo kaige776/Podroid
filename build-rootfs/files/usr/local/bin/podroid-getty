@@ -1,0 +1,23 @@
+#!/bin/sh
+# Wrapper for inittab's per-tty getty lines. Two gettys (hvc0 + ttyS0) are
+# declared because the backend isn't known at squashfs-build time; this
+# script picks the right one at boot via the kernel cmdline marker:
+#
+#   podroid.tty=hvc0   QEMU/TCG backend (virtio-console)
+#   podroid.tty=ttyS0  AVF/pKVM backend (PL011 serial, the only AVF console
+#                      with an input side on Pixel's crosvm)
+#
+# If the marker is absent, default to hvc0 — that's QEMU's historical setup
+# so legacy boots without the marker still get a login.
+TTY="$1"
+WANT=$(sed -n 's/.*podroid\.tty=\([a-zA-Z0-9]*\).*/\1/p' /proc/cmdline)
+[ -z "$WANT" ] && WANT=hvc0
+
+if [ "$TTY" = "$WANT" ]; then
+    exec /sbin/getty -L -l /usr/local/bin/podroid-login 115200 "$TTY" xterm-256color
+fi
+
+# Wrong tty for this backend. Sleep instead of exiting so busybox init
+# doesn't throttle us with "respawning too fast" — the inittab line will
+# just stay parked until shutdown.
+exec sleep 2147483647

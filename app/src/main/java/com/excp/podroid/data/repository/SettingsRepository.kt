@@ -15,6 +15,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.excp.podroid.engine.EngineSelection
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -46,6 +47,8 @@ class SettingsRepository @Inject constructor(
         val KEY_HAPTICS_ENABLED        = booleanPreferencesKey("haptics_enabled")
         val KEY_DYNAMIC_COLOR_ENABLED  = booleanPreferencesKey("dynamic_color_enabled")
         val KEY_LAST_BOOT_DURATION_MS  = longPreferencesKey("last_boot_duration_ms")
+        val KEY_ENGINE_SELECTION       = stringPreferencesKey("engine_selection")
+        val KEY_AVF_HINT_DISMISSED     = booleanPreferencesKey("avf_hint_dismissed")
 
         /**
          * Default tunable QEMU args — CPU model, accel tuning, RNG source, overcommit.
@@ -103,6 +106,11 @@ class SettingsRepository @Inject constructor(
     val hapticsEnabled       = pref(KEY_HAPTICS_ENABLED, true)
     val dynamicColorEnabled  = pref(KEY_DYNAMIC_COLOR_ENABLED, false)
     val lastBootDurationMs   = pref(KEY_LAST_BOOT_DURATION_MS, 0L)
+    val avfHintDismissed     = pref(KEY_AVF_HINT_DISMISSED, false)
+    val engineSelection: Flow<EngineSelection> = context.dataStore.data.map { prefs ->
+        runCatching { EngineSelection.valueOf(prefs[KEY_ENGINE_SELECTION] ?: "AUTO") }
+            .getOrDefault(EngineSelection.AUTO)
+    }
 
     suspend fun setDarkTheme(value: Boolean)             = set(KEY_DARK_THEME, value)
     suspend fun setVmRamMb(value: Int)                   = set(KEY_VM_RAM, value)
@@ -120,6 +128,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setHapticsEnabled(value: Boolean)        = set(KEY_HAPTICS_ENABLED, value)
     suspend fun setDynamicColorEnabled(value: Boolean)   = set(KEY_DYNAMIC_COLOR_ENABLED, value)
     suspend fun setLastBootDurationMs(value: Long)       = set(KEY_LAST_BOOT_DURATION_MS, value)
+    suspend fun setEngineSelection(value: EngineSelection) = set(KEY_ENGINE_SELECTION, value.name)
+    suspend fun setAvfHintDismissed(value: Boolean)      = set(KEY_AVF_HINT_DISMISSED, value)
 
     // Snapshots used by non-Compose call sites (PodroidService, exporters).
     suspend fun getSshEnabledSnapshot()           = sshEnabled.first()
@@ -132,4 +142,5 @@ class SettingsRepository @Inject constructor(
     suspend fun getTerminalFontSnapshot()         = terminalFont.first()
     suspend fun getQemuExtraArgsSnapshot()        = qemuExtraArgs.first()
     suspend fun getKernelExtraCmdlineSnapshot()   = kernelExtraCmdline.first()
+    suspend fun getEngineSelectionSnapshot()      = engineSelection.first()
 }

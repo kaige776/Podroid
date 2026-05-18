@@ -10,6 +10,17 @@ start() {
     ebegin "Loading kernel modules..."
     echo "Loading kernel modules..." > /dev/console
 
+    # Seed the system clock from the host. AVF/crosvm doesn't wire an
+    # emulated RTC the way QEMU TCG does, so without this the guest boots
+    # at epoch (1970-01-01) and every TLS cert appears "not yet valid" —
+    # `apk update` warns `server certificate not trusted`, curl/wget fail,
+    # etc. AvfEngine passes `podroid.epoch=<unix-secs>` on the cmdline; we
+    # parse it here. No-op when the marker is absent (QEMU path).
+    PODROID_EPOCH=$(sed -n 's/.*podroid\.epoch=\([0-9]*\).*/\1/p' /proc/cmdline)
+    if [ -n "$PODROID_EPOCH" ] && [ "$PODROID_EPOCH" -gt 0 ] 2>/dev/null; then
+        date -s "@$PODROID_EPOCH" >/dev/null 2>&1
+    fi
+
     # Rootless podman needs / to be a shared mount so user namespaces can
     # propagate mount events. Without this, every rootless `podman run`
     # warns and may fail to mount /sys-as-fuse-overlayfs inside the userns.

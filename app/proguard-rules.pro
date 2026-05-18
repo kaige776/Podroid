@@ -11,3 +11,9 @@
 -keepclassmembers class com.termux.terminal.TerminalSession {
     com.termux.terminal.TerminalEmulator mEmulator;
 }
+
+# java.net.UnixDomainSocketAddress (JDK 16) is present on Android API 34+ at
+# runtime but absent from the compile-time SDK stubs. ConsoleFanout uses it
+# only on AVF/API-34 devices and is guarded by @RequiresApi(34). Suppress the
+# R8 missing-class error so release builds succeed.
+-dontwarn java.net.UnixDomainSocketAddress

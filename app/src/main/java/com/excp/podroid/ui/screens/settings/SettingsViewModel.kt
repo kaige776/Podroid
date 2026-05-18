@@ -17,7 +17,8 @@ import com.excp.podroid.BuildConfig
 import com.excp.podroid.data.repository.PortForwardRepository
 import com.excp.podroid.data.repository.PortForwardRule
 import com.excp.podroid.data.repository.SettingsRepository
-import com.excp.podroid.engine.PodroidQemu
+import com.excp.podroid.engine.EngineSelection
+import com.excp.podroid.engine.VmEngine
 import com.excp.podroid.engine.VmState
 import com.excp.podroid.util.NetworkUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -52,6 +53,7 @@ data class SettingsUiState(
     val kernelExtraCmdline: String = SettingsRepository.DEFAULT_KERNEL_EXTRA_CMDLINE,
     val darkTheme: Boolean = false,
     val dynamicColorEnabled: Boolean = false,
+    val engineSelection: EngineSelection = EngineSelection.AUTO,
 )
 
 @HiltViewModel
@@ -59,7 +61,7 @@ class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val settingsRepository: SettingsRepository,
     private val portForwardRepository: PortForwardRepository,
-    private val podroidQemu: PodroidQemu,
+    private val engine: VmEngine,
 ) : ViewModel() {
 
     val vmRamMb: StateFlow<Int> = settingsRepository.vmRamMb
@@ -99,7 +101,8 @@ class SettingsViewModel @Inject constructor(
         ) { storageAccess, qemu, kernel, dark, dyn ->
             arrayOf(storageAccess, qemu, kernel, dark, dyn)
         },
-    ) { a, b ->
+        settingsRepository.engineSelection,
+    ) { a, b, engineSel ->
         SettingsUiState(
             vmRamMb = a[0] as Int,
             vmCpus = a[1] as Int,
@@ -110,6 +113,7 @@ class SettingsViewModel @Inject constructor(
             kernelExtraCmdline = b[2] as String,
             darkTheme = b[3] as Boolean,
             dynamicColorEnabled = b[4] as Boolean,
+            engineSelection = engineSel,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
 
@@ -143,7 +147,7 @@ class SettingsViewModel @Inject constructor(
     val portForwardRules: StateFlow<List<PortForwardRule>> = portForwardRepository.rules
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
-    val vmState: StateFlow<VmState> = podroidQemu.state
+    val vmState: StateFlow<VmState> = engine.state
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), VmState.Idle)
 
     fun setDarkTheme(value: Boolean) {
@@ -152,6 +156,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setDynamicColorEnabled(value: Boolean) {
         viewModelScope.launch { settingsRepository.setDynamicColorEnabled(value) }
+    }
+
+    fun setEngineSelection(value: EngineSelection) {
+        viewModelScope.launch { settingsRepository.setEngineSelection(value) }
     }
 
     fun setVmRamMb(value: Int) {
@@ -184,8 +192,13 @@ class SettingsViewModel @Inject constructor(
                 val rule = PortForwardRule(hostPort, guestPort, proto)
                 if (existing.any { it.hostPort == hostPort && it.protocol == proto }) return@forEach
                 portForwardRepository.addRule(rule)
-                if (podroidQemu.state.value is VmState.Running) {
-                    podroidQemu.qmpClient.addPortForward(hostPort, guestPort, proto)
+                if (engine.state.value is VmState.Running) {
+                    val qmp = engine.qmpClient
+                    if (qmp == null) {
+                        android.util.Log.w("SettingsVM", "port forwarding not supported by backend=${engine.backendId}")
+                    } else {
+                        qmp.addPortForward(hostPort, guestPort, proto)
+                    }
                 }
             }
         }
@@ -194,11 +207,19 @@ class SettingsViewModel @Inject constructor(
     /** Current LAN IP of the Android device — shown next to port forward rules. Cached for the VM lifetime. */
     val phoneIp: String by lazy { NetworkUtils.localIpv4() }
 
+    /** Returns the ID string of the currently active VM backend (e.g. "qemu" or "avf"). */
+    fun activeBackendId(): String = engine.backendId
+
     fun removePortForward(rule: PortForwardRule) {
         viewModelScope.launch {
             portForwardRepository.removeRule(rule)
-            if (podroidQemu.state.value is VmState.Running) {
-                podroidQemu.qmpClient.removePortForward(rule.hostPort, rule.protocol)
+            if (engine.state.value is VmState.Running) {
+                val qmp = engine.qmpClient
+                if (qmp == null) {
+                    android.util.Log.w("SettingsVM", "port forwarding not supported by backend=${engine.backendId}")
+                } else {
+                    qmp.removePortForward(rule.hostPort, rule.protocol)
+                }
             }
         }
     }
@@ -302,8 +323,8 @@ class SettingsViewModel @Inject constructor(
             appendLine()
 
             appendLine("=== VM State ===")
-            appendLine("State:       ${podroidQemu.state.value}")
-            appendLine("Boot stage:  ${podroidQemu.bootStage.value.ifEmpty { "(none)" }}")
+            appendLine("State:       ${engine.state.value}")
+            appendLine("Boot stage:  ${engine.bootStage.value.ifEmpty { "(none)" }}")
             val storageFile = File(context.filesDir, "storage.img")
             appendLine(
                 "Storage img: " + if (storageFile.exists())

@@ -42,6 +42,19 @@
     <!-- Large heap for QEMU memory allocation -->
     <uses-feature android:name="android.hardware.opengles.aep" android:required="false" />
 
+    <!--
+        Android Virtualization Framework (AVF / pKVM) opt-in. Both permissions
+        are signature|*|development and can be granted to a side-loaded APK via
+        `adb shell pm grant com.excp.podroid <name>` on pKVM-capable devices
+        (Pixel 8/9/10 etc.). required="false" so the APK still installs on
+        devices without AVF — runtime code falls back to QEMU/TCG.
+    -->
+    <uses-feature
+        android:name="android.software.virtualization_framework"
+        android:required="false" />
+    <uses-permission android:name="android.permission.MANAGE_VIRTUAL_MACHINE" />
+    <uses-permission android:name="android.permission.USE_CUSTOM_VIRTUAL_MACHINE" />
+
     <application
         android:name=".PodroidApplication"
         android:allowBackup="true"

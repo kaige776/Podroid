@@ -8,8 +8,10 @@
 package com.excp.podroid
 
 import android.app.Application
+import android.os.Build
 import android.util.Log
 import dagger.hilt.android.HiltAndroidApp
+import org.lsposed.hiddenapibypass.HiddenApiBypass
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -19,7 +21,26 @@ class PodroidApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        exemptHiddenApi()
         extractAssets()
+    }
+
+    // Android 14+ hides @SystemApi reflection lookups (returning NoSuchMethod
+    // even via getDeclared*). Two prefixes need exempting:
+    //   - Landroid/system/virtualmachine/ — AVF framework (AvfDiagnostics + AvfEngine)
+    //   - Ljava/net/UnixDomainSocketAddress — ConsoleFanout needs UDS.of(String)
+    //     which Android marks BLOCKED for untrusted_app even though the class
+    //     itself is on the bootclasspath.
+    // No-op on sub-P; the exemption itself never throws.
+    private fun exemptHiddenApi() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
+        runCatching {
+            HiddenApiBypass.addHiddenApiExemptions(
+                "Landroid/system/virtualmachine/",
+                "Landroid/system/UnixSocketAddress",
+                "Ljava/net/UnixDomainSocketAddress",
+            )
+        }.onFailure { Log.w(TAG, "HiddenApiBypass exemption failed", it) }
     }
 
     private fun extractAssets() {
