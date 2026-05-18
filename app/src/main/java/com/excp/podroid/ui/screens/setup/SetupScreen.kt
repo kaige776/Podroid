@@ -35,7 +35,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.windowsizeclass.WindowHeightSizeClass
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.runtime.Composable
@@ -59,7 +58,7 @@ import com.excp.podroid.ui.components.PodroidListRow
 import com.excp.podroid.ui.components.PodroidPrimaryButton
 import com.excp.podroid.ui.components.PodroidSectionLabel
 import com.excp.podroid.ui.components.PodroidSwitch
-import com.excp.podroid.ui.components.podroidChipColors
+import com.excp.podroid.ui.components.PodroidChipColors
 import com.excp.podroid.ui.theme.PodroidTokens
 import kotlinx.coroutines.launch
 
@@ -447,7 +446,7 @@ private fun StorageSizeChips(selectedGb: Int, onSelect: (Int) -> Unit) {
                     )
                 },
                 shape = RoundedCornerShape(16.dp),
-                colors = podroidChipColors(),
+                colors = PodroidChipColors(),
             )
         }
     }

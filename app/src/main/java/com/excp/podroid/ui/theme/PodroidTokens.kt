@@ -43,7 +43,6 @@ object PodroidTokens {
         val Headline = 20.sp
         val Title    = 14.sp
         val Body     = 12.sp
-        val Mono     = 11.sp
         val Label    = 10.sp
     }
 

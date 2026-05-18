@@ -15,7 +15,6 @@ import com.excp.podroid.util.NetworkUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -64,9 +63,6 @@ class HomeViewModel @Inject constructor(
     val bootStage: StateFlow<String> = podroidQemu.bootStage
         .stateIn(viewModelScope, SharingStarted.Eagerly, "")
 
-    val storageAccessEnabled: StateFlow<Boolean> = settingsRepository.storageAccessEnabled
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
-
     /** Aggregated metadata for the Home data sections. */
     val meta: StateFlow<HomeMeta> = combine(
         settingsRepository.vmRamMb,
@@ -90,32 +86,9 @@ class HomeViewModel @Inject constructor(
         HomeMeta(ramMb = 512, cpus = 2, storageGb = 8, sshEnabled = false, portForwardCount = 0, lastBootDurationMs = 0L),
     )
 
-    /**
-     * Seconds since the VM transitioned to Running. Null when not running.
-     * Recomputed once per second by the ticker flow; the underlying timestamp
-     * is captured on the first observation of the Running state.
-     */
-    val uptimeSeconds: StateFlow<Long?> = flow {
-        var runningSince: Long? = null
-        var lastState: VmState? = null
-        podroidQemu.state.collect { state ->
-            if (state is VmState.Running && lastState !is VmState.Running) {
-                runningSince = System.currentTimeMillis()
-            } else if (state !is VmState.Running) {
-                runningSince = null
-            }
-            lastState = state
-            if (state is VmState.Running) {
-                emit((System.currentTimeMillis() - (runningSince ?: System.currentTimeMillis())) / 1000)
-            } else {
-                emit(null)
-            }
-        }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
-
-    // Independent ticker — drives display refresh every second while running.
-    // (uptimeSeconds above only re-emits on state change; we need a ticker to
-    // re-evaluate display every second.)
+    // Ticker — drives uptime display refresh every second while running. The
+    // formatted label is computed synchronously by uptimeLabel(); this flow
+    // exists only to recompose the consumer once per second.
     val uptimeTicker: StateFlow<Long> = flow {
         while (true) {
             emit(System.currentTimeMillis() / 1000)
@@ -177,10 +150,6 @@ class HomeViewModel @Inject constructor(
     }
 
     fun startPodroid() = PodroidService.start(context)
-
-    fun setStorageAccessEnabled(enabled: Boolean) {
-        viewModelScope.launch { settingsRepository.setStorageAccessEnabled(enabled) }
-    }
 
     fun stopVm() = PodroidService.stop(context)
 

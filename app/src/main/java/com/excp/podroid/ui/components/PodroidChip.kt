@@ -20,7 +20,7 @@ import com.excp.podroid.ui.theme.PodroidTokens
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun podroidChipColors(): SelectableChipColors = FilterChipDefaults.filterChipColors(
+fun PodroidChipColors(): SelectableChipColors = FilterChipDefaults.filterChipColors(
     containerColor                  = MaterialTheme.colorScheme.surfaceVariant,
     labelColor                      = MaterialTheme.colorScheme.onSurface,
     selectedContainerColor          = PodroidTokens.Accent,

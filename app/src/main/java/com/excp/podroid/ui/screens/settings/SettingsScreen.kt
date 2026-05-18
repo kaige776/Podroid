@@ -62,7 +62,7 @@ import com.excp.podroid.ui.components.PodroidDestructiveButton
 import com.excp.podroid.ui.components.PodroidGhostButton
 import com.excp.podroid.ui.components.PodroidInlineAction
 import com.excp.podroid.ui.components.PodroidListRow
-import com.excp.podroid.ui.components.podroidChipColors
+import com.excp.podroid.ui.components.PodroidChipColors
 import com.excp.podroid.ui.components.PodroidSectionLabel
 import com.excp.podroid.ui.components.PodroidSwitch
 import com.excp.podroid.ui.components.PodroidTopBar
@@ -299,7 +299,7 @@ private fun RamSection(currentMb: Int, onChange: (Int) -> Unit, enabled: Boolean
                     onClick = { onChange(mb) },
                     label = { Text(if (mb >= 1024) "${mb / 1024} GB" else "$mb MB") },
                     shape = RoundedCornerShape(PodroidTokens.Radius.Chip),
-                    colors = podroidChipColors(),
+                    colors = PodroidChipColors(),
                 )
             }
         }
@@ -336,7 +336,7 @@ private fun CpusSection(currentCpus: Int, onChange: (Int) -> Unit, enabled: Bool
                     onClick = { onChange(n) },
                     label = { Text("$n") },
                     shape = RoundedCornerShape(PodroidTokens.Radius.Chip),
-                    colors = podroidChipColors(),
+                    colors = PodroidChipColors(),
                 )
             }
         }
@@ -520,7 +520,7 @@ private fun AddPortForwardDialog(
                                 )
                             },
                             shape = RoundedCornerShape(PodroidTokens.Radius.Chip),
-                            colors = podroidChipColors(),
+                            colors = PodroidChipColors(),
                         )
                     }
                 }

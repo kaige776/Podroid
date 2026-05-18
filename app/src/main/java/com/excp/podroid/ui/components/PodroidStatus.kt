@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.excp.podroid.ui.theme.PodroidDarkTextFaint
 import com.excp.podroid.ui.theme.PodroidTokens
 
 /**
@@ -50,6 +51,6 @@ fun PodroidStatus(
 object PodroidStatusColors {
     val Running = PodroidTokens.Accent
     val Starting = PodroidTokens.Amber
-    val Stopped = Color(0xFF737373)
+    val Stopped = PodroidDarkTextFaint
     val Error = PodroidTokens.Red
 }

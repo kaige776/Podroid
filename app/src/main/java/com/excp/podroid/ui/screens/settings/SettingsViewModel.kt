@@ -22,7 +22,6 @@ import com.excp.podroid.util.NetworkUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -62,22 +61,11 @@ class SettingsViewModel @Inject constructor(
     private val podroidQemu: PodroidQemu,
 ) : ViewModel() {
 
-    val darkTheme: Flow<Boolean> = settingsRepository.darkTheme
-
     val vmRamMb: StateFlow<Int> = settingsRepository.vmRamMb
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 512)
 
     val vmCpus: StateFlow<Int> = settingsRepository.vmCpus
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1)
-
-    val terminalFontSize: StateFlow<Int> = settingsRepository.terminalFontSize
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 20)
-
-    val terminalColorTheme: StateFlow<String> = settingsRepository.terminalColorTheme
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "default")
-
-    val terminalFont: StateFlow<String> = settingsRepository.terminalFont
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), "default")
 
     val qemuExtraArgs: StateFlow<String> = settingsRepository.qemuExtraArgs
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsRepository.DEFAULT_QEMU_EXTRA_ARGS)
@@ -143,13 +131,9 @@ class SettingsViewModel @Inject constructor(
     val storageSizeGb: StateFlow<Int> = settingsRepository.storageSizeGb
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 2)
 
-    val sshEnabled: Flow<Boolean> = settingsRepository.sshEnabled
-
     fun setSshEnabled(value: Boolean) {
         viewModelScope.launch { settingsRepository.setSshEnabled(value) }
     }
-
-    val storageAccessEnabled: Flow<Boolean> = settingsRepository.storageAccessEnabled
 
     fun setStorageAccessEnabled(value: Boolean) {
         viewModelScope.launch { settingsRepository.setStorageAccessEnabled(value) }

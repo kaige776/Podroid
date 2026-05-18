@@ -3,6 +3,7 @@ package com.excp.podroid.ui.components
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.windowsizeclass.WindowSizeClass
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.runtime.Composable
@@ -12,7 +13,8 @@ import androidx.compose.ui.unit.dp
 
 /**
  * A container that constrains its content to a maximum width on large screens
- * to follow Material 3 adaptive layout best practices.
+ * to follow Material 3 adaptive layout best practices. Compact widths
+ * fall through to the caller's modifier unchanged.
  */
 @Composable
 fun AdaptiveContainer(
@@ -21,21 +23,20 @@ fun AdaptiveContainer(
     maxWidth: Int = 600,
     content: @Composable () -> Unit
 ) {
-    val isExpanded = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Expanded
-    val isMedium = windowSizeClass.widthSizeClass == WindowWidthSizeClass.Medium
+    val widthClass = windowSizeClass.widthSizeClass
+    val constrainWidth = widthClass == WindowWidthSizeClass.Expanded ||
+        widthClass == WindowWidthSizeClass.Medium
 
-    Box(
-        modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.TopCenter
-    ) {
-        Box(
-            modifier = if (isExpanded || isMedium) {
-                Modifier.widthIn(max = maxWidth.dp)
-            } else {
-                Modifier.fillMaxWidth()
-            }
-        ) {
-            content()
-        }
+    val sizing = if (constrainWidth) {
+        Modifier
+            .fillMaxWidth()
+            .wrapContentWidth(Alignment.CenterHorizontally)
+            .widthIn(max = maxWidth.dp)
+    } else {
+        Modifier.fillMaxWidth()
+    }
+
+    Box(modifier = modifier.then(sizing)) {
+        content()
     }
 }

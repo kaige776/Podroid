@@ -2,16 +2,6 @@ package com.excp.podroid.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Legacy Material You fallback — kept for runtime compat with screens that
-// still reference the old constants. Safe to drop once Task 12 (Settings)
-// lands and no screen-level code references them.
-val Purple80     = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Cyan80       = Color(0xFF80DEEA)
-val Purple40     = Color(0xFF6650A4)
-val PurpleGrey40 = Color(0xFF625B71)
-val Cyan40       = Color(0xFF00838F)
-
 // ── Podroid "Server console" palette ──────────────────────────────────────────
 // Dark
 val PodroidDarkBg        = Color(0xFF0A0A0A)

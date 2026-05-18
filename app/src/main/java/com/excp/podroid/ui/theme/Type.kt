@@ -49,7 +49,3 @@ fun buildPodroidTypography(): Typography {
         ),
     )
 }
-
-// Backwards-compat default so any direct `Typography` references in tooling
-// keep compiling. Real screens go through buildPodroidTypography() via Theme.
-val Typography = Typography()
