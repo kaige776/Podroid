@@ -38,6 +38,13 @@ class ConsoleFanout(
     private val socketPath: String,
     private val detector: BootStageDetector,
     private val scope: CoroutineScope,
+    /**
+     * Optional tee for every byte chunk the VM emits. AvfEngine wires this to
+     * console.log + the consoleText flow so AVF gets the same post-mortem
+     * surface as QEMU (issue #29: kernel panics under AVF were invisible
+     * because the bytes only went to the bridge socket + boot detector).
+     */
+    private val onVmBytes: ((ByteArray, Int) -> Unit)? = null,
 ) {
     companion object { private const val TAG = "ConsoleFanout" }
 
@@ -80,6 +87,7 @@ class ConsoleFanout(
                     val n = consoleOutput.read(buf)
                     if (n <= 0) break
                     detector.feed(buf, n)
+                    onVmBytes?.invoke(buf, n)
                     var off = 0
                     while (off < n) {
                         val w = Os.write(client, buf, off, n - off)

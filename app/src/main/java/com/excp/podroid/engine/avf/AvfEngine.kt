@@ -100,6 +100,13 @@ class AvfEngine @Inject constructor(
     private var consoleStream: java.io.InputStream? = null
     private var consoleStreamInput: java.io.OutputStream? = null
     private var fanout: ConsoleFanout? = null
+    // Console capture — matches QemuEngine's pattern. Without this AVF kernel
+    // panics are invisible (issue #29): the boot bytes only went to the bridge
+    // socket + boot detector, never to console.log or the consoleText flow
+    // surfaced by the diagnostic exporter.
+    private val consoleBuilder = StringBuilder()
+    private val maxConsoleSize = 64 * 1024
+    private var logOut: java.io.FileOutputStream? = null
     @Volatile private var control: VsockControlChannel? = null
     /**
      * Initial rules captured from start()'s portForwards arg — includes the
@@ -151,6 +158,9 @@ class AvfEngine @Inject constructor(
 
     override suspend fun start(portForwards: List<PortForwardRule>, config: VmConfig) {
         if (_state.value is VmState.Running || _state.value is VmState.Starting) return
+        // Reset console capture from any prior run before we start emitting.
+        consoleBuilder.clear()
+        _consoleText.value = ""
         initialRules.clear()
         initialRules.addAll(portForwards.filter { it.protocol == "tcp" })
         if (portForwards.any { it.protocol != "tcp" }) {
@@ -210,15 +220,41 @@ class AvfEngine @Inject constructor(
             consoleStream = inStream
             consoleStreamInput = outStream
 
+            // Open console.log fresh (mirrors QemuEngine's monitorBootSerial).
+            // The diagnostic exporter cats this path; on AVF it was previously
+            // always empty, masking kernel panics like issue #29's reason=5
+            // reboot on Pixel 8a. Tee inside ConsoleFanout's vm→bridge pump.
+            val logFile = File(context.filesDir, "console.log")
+            runCatching { logFile.delete() }
+            val log = runCatching { java.io.FileOutputStream(logFile, false) }
+                .onFailure { Log.w(TAG, "console.log open failed (continuing without capture)", it) }
+                .getOrNull()
+            logOut = log
+
             // Fan out: VM ↔ filesystem socket. The bridge subprocess connects to
             // that socket and splices PTY ↔ socket. BootStageDetector tees the
-            // VM output to drive boot-stage + state transitions.
+            // VM output to drive boot-stage + state transitions; onVmBytes tees
+            // the same bytes to console.log + the consoleText flow.
             val fo = ConsoleFanout(
                 consoleOutput = inStream,
                 consoleInput = outStream,
                 socketPath = terminalSockPath,
                 detector = detector,
                 scope = scope,
+                onVmBytes = { buf, n ->
+                    runCatching {
+                        log?.write(buf, 0, n)
+                        log?.flush()
+                    }
+                    // UTF-8 decode best-effort (split multi-byte sequences may
+                    // surface as U+FFFD here — acceptable for the diagnostic
+                    // tail; the raw bytes hit disk faithfully above).
+                    consoleBuilder.append(String(buf, 0, n, Charsets.UTF_8))
+                    if (consoleBuilder.length > maxConsoleSize) {
+                        consoleBuilder.delete(0, consoleBuilder.length - maxConsoleSize)
+                    }
+                    _consoleText.value = consoleBuilder.toString()
+                },
             )
             fanout = fo
             fo.start()
@@ -387,6 +423,14 @@ class AvfEngine @Inject constructor(
         consoleStreamInput = null
         runCatching { consoleStream?.close() }
         consoleStream = null
+        // Flush + close console.log; the tail stays on disk for the next
+        // diagnostic export. consoleText flow keeps its last value (UI reads
+        // it cached); start() clears both on the next run.
+        runCatching {
+            logOut?.flush()
+            logOut?.close()
+        }
+        logOut = null
         // Tear down the old terminal session so the next start()'s spawnBridge
         // doesn't short-circuit on the stale reference and leave the fanout's
         // accept() blocked forever (visible as "stuck at Initializing AVF...").
