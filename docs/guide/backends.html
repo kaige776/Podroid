@@ -98,6 +98,11 @@
 
       <p>Condition (4) is the non-obvious one. pKVM can operate in two modes: <em>protected</em> (guest memory is encrypted and the host cannot inspect it) and <em>non-protected</em>. Podroid's guest image is a standard Alpine Linux squashfs - it does not meet the signing and measurement requirements for protected VMs. A device that only advertises protected VM support cannot run Podroid's image under AVF, so Auto falls back to QEMU on such devices.</p>
 
+      <div class="callout note">
+        <span class="label">Protected-only device and want hardware speed? You'll need root.</span>
+        <p>If your device only supports protected VMs, AVF cannot run Podroid's custom kernel and there is no app-side workaround: the protected-VM firmware (pvmfw) only boots payloads that carry a signed, verified boot image, which a general-purpose Linux kernel does not. The only remaining route to hardware virtualization is to open the hypervisor device node (<code>/dev/kvm</code>, or <code>/dev/gunyah</code> on Qualcomm SoCs) directly, which requires <strong>root</strong>. Podroid is deliberately no-root, so it uses QEMU on these devices. If you are rooted and on a recent Qualcomm Snapdragon device (8 Gen 3 / SM8650 or newer with Gunyah enabled), a separate, unaffiliated project, <a href="https://github.com/Droid-VM/DroidVM" target="_blank" rel="noopener">DroidVM</a>, runs VMs through the Gunyah hypervisor or KVM for near-native speed.</p>
+      </div>
+
       <h2>Differences between backends</h2>
 
       <table>

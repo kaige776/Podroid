@@ -135,6 +135,8 @@
       <h2>What won't help without root</h2>
       <p>Some common Linux performance tricks are simply unavailable on a stock Android device: <code>io_uring</code> is blocked by Android 12+ seccomp policy; CPU affinity (<code>taskset</code>) requires elevated scheduling permissions; KSM memory deduplication is a kernel knob; huge pages on the host are not user-configurable; TAP networking requires a TUN/TAP device. These are hard limits, not oversights.</p>
 
+      <p>Full hardware virtualization (KVM, or Qualcomm's Gunyah) is in the same category for the QEMU path: opening the hypervisor device node directly requires <strong>root</strong>, and on AVF it is gated to devices that allow non-protected pKVM (see <a href="backends.html">Backends</a>). Podroid stays no-root by design. If you are rooted on a recent Qualcomm Snapdragon device, a separate project such as <a href="https://github.com/Droid-VM/DroidVM" target="_blank" rel="noopener">DroidVM</a> uses Gunyah or KVM for near-native VMs; Podroid does not require root and uses QEMU or AVF instead.</p>
+
       <div class="callout tip">
         <span class="label">Biggest wins</span>
         <p>If you have a Pixel 8, 9, or 10 (or another device shipping pKVM), switch the backend to <strong>AVF</strong> in Settings &rarr; Advanced. AVF runs the guest on real hardware CPU cores via the kernel hypervisor - no TCG, no double-JIT overhead, no cold-cache process-spawn cost. See <a href="backends.html">Backends: QEMU &amp; AVF</a> for setup. For heavy workloads on any backend, also raise RAM in Settings and lower the X11 viewer resolution if you are running a desktop.</p>
