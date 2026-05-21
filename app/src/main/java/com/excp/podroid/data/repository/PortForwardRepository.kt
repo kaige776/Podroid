@@ -8,12 +8,15 @@ package com.excp.podroid.data.repository
 
 import android.content.Context
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -31,15 +34,42 @@ data class PortForwardRule(
     fun serialize(): String = "$protocol:$hostPort:$guestPort"
 
     companion object {
+        private val VALID_PROTOCOLS = setOf("tcp", "udp")
+
         fun deserialize(s: String): PortForwardRule? {
             val parts = s.split(":")
             if (parts.size != 3) return null
             val proto = parts[0]
+            if (proto !in VALID_PROTOCOLS) return null
             val host = parts[1].toIntOrNull() ?: return null
             val guest = parts[2].toIntOrNull() ?: return null
+            if (host !in 1..65535 || guest !in 1..65535) return null
             return PortForwardRule(host, guest, proto)
         }
     }
+}
+
+/**
+ * Removes any existing entry in [current] that shares the same
+ * (hostPort, protocol) key as [newRule], then adds [newRule].
+ *
+ * The engine and UI treat (hostPort, protocol) as a unique key — two rules
+ * with the same host port and protocol would produce duplicate QEMU hostfwd
+ * arguments and a duplicate Compose key crash.
+ */
+internal fun deduplicatePortForwards(
+    current: Set<String>,
+    newRule: PortForwardRule,
+): Set<String> {
+    val filtered = current.filterTo(mutableSetOf()) { serialized ->
+        val existing = PortForwardRule.deserialize(serialized)
+        // Keep entries that differ in either hostPort or protocol.
+        existing == null ||
+            existing.hostPort != newRule.hostPort ||
+            existing.protocol != newRule.protocol
+    }
+    filtered.add(newRule.serialize())
+    return filtered
 }
 
 @Singleton
@@ -51,18 +81,19 @@ class PortForwardRepository @Inject constructor(
     }
 
     val rules: Flow<List<PortForwardRule>> = context.dataStore.data
+        .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
         .map { prefs ->
             prefs[KEY_PORT_FORWARDS]
                 ?.mapNotNull { PortForwardRule.deserialize(it) }
+                ?.sortedWith(compareBy({ it.hostPort }, { it.protocol }))
                 ?: emptyList()
         }
         .distinctUntilChanged()
 
     suspend fun addRule(rule: PortForwardRule) {
         context.dataStore.edit { prefs ->
-            val current = prefs[KEY_PORT_FORWARDS]?.toMutableSet() ?: mutableSetOf()
-            current.add(rule.serialize())
-            prefs[KEY_PORT_FORWARDS] = current
+            val current = prefs[KEY_PORT_FORWARDS] ?: emptySet()
+            prefs[KEY_PORT_FORWARDS] = deduplicatePortForwards(current, rule)
         }
     }
 
@@ -75,9 +106,11 @@ class PortForwardRepository @Inject constructor(
     }
 
     suspend fun getRulesSnapshot(): List<PortForwardRule> =
-        context.dataStore.data.map { prefs ->
-            prefs[KEY_PORT_FORWARDS]
-                ?.mapNotNull { PortForwardRule.deserialize(it) }
-                ?: emptyList()
-        }.first()
+        context.dataStore.data
+            .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
+            .map { prefs ->
+                prefs[KEY_PORT_FORWARDS]
+                    ?.mapNotNull { PortForwardRule.deserialize(it) }
+                    ?: emptyList()
+            }.first()
 }

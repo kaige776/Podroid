@@ -18,8 +18,10 @@ import androidx.datastore.preferences.preferencesDataStore
 import com.excp.podroid.engine.EngineSelection
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -93,7 +95,9 @@ class SettingsRepository @Inject constructor(
     }
 
     private fun <T> pref(key: Preferences.Key<T>, default: T): Flow<T> =
-        context.dataStore.data.map { it[key] ?: default }
+        context.dataStore.data
+            .catch { e -> if (e is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw e }
+            .map { it[key] ?: default }
 
     private suspend fun <T> set(key: Preferences.Key<T>, value: T) =
         context.dataStore.edit { it[key] = value }
@@ -120,13 +124,15 @@ class SettingsRepository @Inject constructor(
     val dynamicColorEnabled  = pref(KEY_DYNAMIC_COLOR_ENABLED, false)
     val lastBootDurationMs   = pref(KEY_LAST_BOOT_DURATION_MS, 0L)
     val avfHintDismissed     = pref(KEY_AVF_HINT_DISMISSED, false)
-    val avfVerboseLogging: Flow<Boolean> = context.dataStore.data.map { prefs ->
-        prefs[KEY_AVF_VERBOSE_LOGGING] ?: false
-    }
-    val engineSelection: Flow<EngineSelection> = context.dataStore.data.map { prefs ->
-        runCatching { EngineSelection.valueOf(prefs[KEY_ENGINE_SELECTION] ?: "AUTO") }
-            .getOrDefault(EngineSelection.AUTO)
-    }
+    val avfVerboseLogging: Flow<Boolean> = context.dataStore.data
+        .catch { e -> if (e is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw e }
+        .map { prefs -> prefs[KEY_AVF_VERBOSE_LOGGING] ?: false }
+    val engineSelection: Flow<EngineSelection> = context.dataStore.data
+        .catch { e -> if (e is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw e }
+        .map { prefs ->
+            runCatching { EngineSelection.valueOf(prefs[KEY_ENGINE_SELECTION] ?: "AUTO") }
+                .getOrDefault(EngineSelection.AUTO)
+        }
 
     suspend fun setDarkTheme(value: Boolean)             = set(KEY_DARK_THEME, value)
     suspend fun setVmRamMb(value: Int)                   = set(KEY_VM_RAM, value)
@@ -148,7 +154,9 @@ class SettingsRepository @Inject constructor(
     suspend fun setAvfHintDismissed(value: Boolean)      = set(KEY_AVF_HINT_DISMISSED, value)
     suspend fun setAvfVerboseLogging(value: Boolean)     = set(KEY_AVF_VERBOSE_LOGGING, value)
 
-    val x11Settings: kotlinx.coroutines.flow.Flow<com.excp.podroid.x11.X11Settings> = context.dataStore.data.map { p ->
+    val x11Settings: kotlinx.coroutines.flow.Flow<com.excp.podroid.x11.X11Settings> = context.dataStore.data
+        .catch { e -> if (e is IOException) emit(androidx.datastore.preferences.core.emptyPreferences()) else throw e }
+        .map { p ->
         com.excp.podroid.x11.X11Settings(
             resolutionMode = runCatching { com.excp.podroid.x11.ResolutionMode.valueOf(p[KEY_X11_RES_MODE] ?: "MATCH") }.getOrDefault(com.excp.podroid.x11.ResolutionMode.MATCH),
             preset = runCatching { com.excp.podroid.x11.ResolutionPreset.valueOf(p[KEY_X11_RES_PRESET] ?: "R1080P") }.getOrDefault(com.excp.podroid.x11.ResolutionPreset.R1080P),
@@ -166,7 +174,9 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setX11ResolutionMode(v: String) = set(KEY_X11_RES_MODE, v)
     suspend fun setX11Preset(v: String) = set(KEY_X11_RES_PRESET, v)
-    suspend fun setX11Custom(w: Int, h: Int) { set(KEY_X11_CUSTOM_W, w); set(KEY_X11_CUSTOM_H, h) }
+    suspend fun setX11Custom(w: Int, h: Int) {
+        context.dataStore.edit { it[KEY_X11_CUSTOM_W] = w; it[KEY_X11_CUSTOM_H] = h }
+    }
     suspend fun setX11TouchMode(v: String) = set(KEY_X11_TOUCH_MODE, v)
     suspend fun setX11TrackpadSensitivity(v: Float) = set(KEY_X11_TP_SENSITIVITY, v.toString())
     suspend fun setX11TrackpadAccel(v: Boolean) = set(KEY_X11_TP_ACCEL, v)
