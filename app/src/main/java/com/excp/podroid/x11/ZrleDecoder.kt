@@ -60,8 +60,7 @@ class ZrleDecoder {
      * inflater produces corrupt output or a DataFormatException.
      *
      * Call this from the session-level connect path (X11ViewModel.connect()), not
-     * from the per-rect decode path. The call site lives in a WS-2 file; this method
-     * is intentionally unused after this change and will be wired in a follow-up.
+     * from the per-rect decode path.
      */
     fun reset() {
         inflater.reset()

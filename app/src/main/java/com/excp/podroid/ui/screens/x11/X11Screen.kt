@@ -217,6 +217,11 @@ fun X11Screen(
 
     var svWidth  by remember { mutableIntStateOf(1) }
     var svHeight by remember { mutableIntStateOf(1) }
+    // Largest surface height seen for the current width: the "genuine" surface
+    // size with no IME inset. An IME dismiss grows the surface back UP TO this
+    // value, which must NOT trigger a desktop-size renegotiation; only a height
+    // beyond this baseline (or a width change) is a real surface resize.
+    var svGenuineHeight by remember { mutableIntStateOf(0) }
 
     // Letterbox / pillarbox dst rect, pinned to top so the soft keyboard
     // (and the extra-keys row) live in the empty bottom strip.
@@ -255,15 +260,21 @@ fun X11Screen(
     var altActive  by remember { mutableStateOf(false) }
 
     fun sendWithModifiers(keysym: Int) {
-        if (ctrlActive) viewModel.sendKey(XK_Control_L, down = true)
-        if (altActive)  viewModel.sendKey(XK_Alt_L,     down = true)
-        viewModel.sendKey(keysym, down = true)
-        viewModel.sendKey(keysym, down = false)
-        if (altActive)  viewModel.sendKey(XK_Alt_L,     down = false)
-        if (ctrlActive) viewModel.sendKey(XK_Control_L, down = false)
-        // One-shot: clear modifiers after one press.
+        // Snapshot then clear the one-shot modifiers BEFORE emitting, so the
+        // wrap decision and the flag reset are atomic from the caller's view: a
+        // re-entrant call (e.g. an IME diff arriving while a hardware key is mid-
+        // emit) can't observe the flag still set and double-wrap, and the up
+        // events are computed from the same snapshot that produced the downs.
+        val ctrl = ctrlActive
+        val alt  = altActive
         ctrlActive = false
         altActive  = false
+        if (ctrl) viewModel.sendKey(XK_Control_L, down = true)
+        if (alt)  viewModel.sendKey(XK_Alt_L,     down = true)
+        viewModel.sendKey(keysym, down = true)
+        viewModel.sendKey(keysym, down = false)
+        if (alt)  viewModel.sendKey(XK_Alt_L,     down = false)
+        if (ctrl) viewModel.sendKey(XK_Control_L, down = false)
     }
 
     fun onExtraKey(label: String) {
@@ -433,6 +444,12 @@ fun X11Screen(
                         ) {
                             fun fbX(px: Float) = ((px - currentDstX) / currentDstW.coerceAtLeast(1) * currentFbW).toInt().coerceIn(0, currentFbW - 1)
                             fun fbY(py: Float) = ((py - currentDstY) / currentDstH.coerceAtLeast(1) * currentFbH).toInt().coerceIn(0, currentFbH - 1)
+                            // True only inside the letterbox/pillarbox content rect. Used to
+                            // reject DIRECT-touch taps that land in the black bars instead of
+                            // clamping them to an edge pixel (which produced a phantom edge click).
+                            fun inContent(px: Float, py: Float) =
+                                px >= currentDstX && px < currentDstX + currentDstW &&
+                                    py >= currentDstY && py < currentDstY + currentDstH
                             awaitPointerEventScope {
                                 while (true) {
                                     val event = awaitPointerEvent()
@@ -481,6 +498,18 @@ fun X11Screen(
                                     if (dragLocked) {
                                         viewModel.release(VncClient.BTN_LEFT)
                                         dragLocked = false
+                                        while (true) {
+                                            val e = awaitPointerEvent(); e.changes.forEach { it.consume() }
+                                            if (e.changes.none { it.pressed }) break
+                                        }
+                                        continue
+                                    }
+
+                                    // DIRECT touch maps absolute screen coords to the framebuffer,
+                                    // so a tap in the letterbox bars has no valid target: drain it
+                                    // as a no-op rather than clamping to an edge click. (TRACKPAD is
+                                    // relative: any start point is valid, so it's exempt.)
+                                    if (s.touchMode == TouchMode.DIRECT && !inContent(sx, sy)) {
                                         while (true) {
                                             val e = awaitPointerEvent(); e.changes.forEach { it.consume() }
                                             if (e.changes.none { it.pressed }) break
@@ -572,14 +601,18 @@ fun X11Screen(
                             holder.addCallback(object : SurfaceHolder.Callback {
                                 override fun surfaceCreated(h: SurfaceHolder) {}
                                 override fun surfaceChanged(h: SurfaceHolder, f: Int, w: Int, hh: Int) {
-                                    // Ignore height-only shrinks caused by the IME appearing;
-                                    // those don't require a desktop resize (only a layout reflow).
-                                    // Only send a resolution request when width changes or height
-                                    // grows (genuine surface resize, not just keyboard insets).
+                                    // Ignore height changes caused by the IME opening/closing;
+                                    // those reflow the layout but don't change the genuine surface
+                                    // size. A width change resets the baseline (rotation/relayout);
+                                    // otherwise only a height BEYOND the largest non-IME height seen
+                                    // counts as a real resize. An IME dismiss grows hh back up to the
+                                    // baseline and is correctly skipped.
                                     val widthChanged = w != svWidth
-                                    val heightGrew = hh > svHeight
+                                    if (widthChanged) svGenuineHeight = 0
+                                    val heightGrew = hh > svGenuineHeight
                                     svWidth = w
                                     svHeight = hh
+                                    if (heightGrew) svGenuineHeight = hh
                                     if (widthChanged || heightGrew) {
                                         viewModel.requestResolution(w, hh)
                                     }

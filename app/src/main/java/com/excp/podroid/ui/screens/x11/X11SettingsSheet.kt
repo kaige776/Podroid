@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,6 +34,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -251,35 +254,41 @@ private fun CustomResolutionFields(
     var wText by remember(initialW) { mutableStateOf(initialW.toString()) }
     var hText by remember(initialH) { mutableStateOf(initialH.toString()) }
 
+    // Commit only on IME Done or focus loss, not on every keystroke. Typing
+    // "1920" used to fire four SetDesktopSize renegotiations (1, 19, 192, 1920);
+    // a partial value also produced a tiny intermediate desktop. The downstream
+    // setter clamps width/height (sane max and <= 0xFFFF) so a wrap is impossible.
+    fun commit() {
+        val w = wText.toIntOrNull() ?: return
+        val h = hText.toIntOrNull() ?: return
+        onCommit(w, h)
+    }
+
     Row(
         horizontalArrangement = Arrangement.spacedBy(PodroidTokens.Spacing.MD),
         modifier = Modifier.fillMaxWidth(),
     ) {
         OutlinedTextField(
             value = wText,
-            onValueChange = { v ->
-                wText = v
-                val w = v.toIntOrNull() ?: return@OutlinedTextField
-                val h = hText.toIntOrNull() ?: return@OutlinedTextField
-                onCommit(w, h)
-            },
+            onValueChange = { wText = it },
             label = { Text("Width") },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { commit() }),
+            modifier = Modifier
+                .weight(1f)
+                .onFocusChanged { if (!it.isFocused) commit() },
         )
         OutlinedTextField(
             value = hText,
-            onValueChange = { v ->
-                hText = v
-                val w = wText.toIntOrNull() ?: return@OutlinedTextField
-                val h = v.toIntOrNull() ?: return@OutlinedTextField
-                onCommit(w, h)
-            },
+            onValueChange = { hText = it },
             label = { Text("Height") },
             singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = { commit() }),
+            modifier = Modifier
+                .weight(1f)
+                .onFocusChanged { if (!it.isFocused) commit() },
         )
     }
 }
