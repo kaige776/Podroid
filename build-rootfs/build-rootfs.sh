@@ -83,6 +83,12 @@ sed -i "s|^root:[^:]*:|root:${ROOT_HASH}:|" "$ROOTFS/etc/shadow"
 rm -rf "$ROOTFS/usr/share/man" "$ROOTFS/usr/share/doc" \
        "$ROOTFS/usr/share/locale" "$ROOTFS/usr/share/info"
 
+# Remove the stock pulseaudio OpenRC service. Podroid starts pulseaudio
+# directly from podroid-x11 (start-stop-daemon), never as a service; left in
+# place its depend() pulls in a non-existent "udev" service, so OpenRC logs
+# "Service 'pulseaudio' needs non existent service 'udev'" on every boot.
+rm -f "$ROOTFS/etc/init.d/pulseaudio"
+
 # Pre-create podman storage dirs (saves first-boot mkdir)
 mkdir -p "$ROOTFS/var/lib/containers/storage" \
          "$ROOTFS/run/containers/storage" \

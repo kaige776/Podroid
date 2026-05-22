@@ -14,8 +14,9 @@ start() {
     NETIF=""
     for _i in $(seq 1 10); do
         # Exclude virtual/bridge devices so the real virtio NIC is picked.
-        # lxcbr0 is created by podroid-bootstrap (which runs *before* us), so
-        # it would otherwise be a candidate; br-/cni cover other bridge names.
+        # The LXC bridge lxcbr0 (brought up by the dnsmasq.lxcbr0 service),
+        # podman/docker/cni bridges, and veth pairs would otherwise be
+        # candidates; the grep below filters them all out by name.
         NETIF=$(ip -o link show 2>/dev/null | awk -F': ' '{print $2}' | \
             grep -vE '^(lo|dummy[0-9]*|veth|podman|cni|docker|lxcbr|br-)' | head -1)
         [ -n "$NETIF" ] && break
