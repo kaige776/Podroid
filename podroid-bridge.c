@@ -204,6 +204,16 @@ int main(int argc, char *argv[]) {
 
     send_resize();
 
+    /* Kick getty to (re)emit the login prompt. terminal.sock is a QEMU chardev
+     * with server=on,wait=off, so whatever getty printed to hvc0 before this
+     * bridge connected was discarded (no client attached). getty starts right
+     * after `::wait:openrc default`, racing this connect, so the prompt is
+     * usually gone — leaving a blank terminal until a keystroke retriggers it.
+     * A lone CR is read by getty as an empty login name, so it re-displays
+     * /etc/issue + the login prompt. Mirrors the manual Enter users hit today;
+     * if the prompt did survive the race this only adds one harmless reprompt. */
+    write_all(g_term_fd, "\r", 1);
+
     /* Self-pipe for signal-to-select wakeup. AF_UNIX socketpair gives bidirec-
      * tional fds; we only use one direction. Set O_NONBLOCK on the write end
      * so a flood of signals can never block the signal handler. */
