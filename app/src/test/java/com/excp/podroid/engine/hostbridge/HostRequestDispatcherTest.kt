@@ -39,7 +39,7 @@ private fun dispatcher(
     listForwards = { rules.toList() },
 )
 
-class HostRequestDispatcherTest2 {
+class HostRequestDispatcherTest {
     @Test fun notifyPostsAndReturnsId() = runBlocking {
         val poster = FakePoster()
         val d = dispatcher(poster)
@@ -80,7 +80,9 @@ class HostRequestDispatcherTest2 {
         assertEquals(listOf(PortForwardRule(8080, 80, "tcp")), rules)
     }
 
-    @Test fun fwdAddSugarDefaultsTcp() = runBlocking {
+    @Test fun fwdAddAcceptsExplicitTcpLine() = runBlocking {
+        // The dispatcher takes a fully-formed line; the tcp-defaulting sugar lives
+        // in the CLI, so this checks we accept the exact line `podroid-forward 8080 80` emits.
         val rules = mutableListOf<PortForwardRule>()
         assertEquals("OK", dispatcher(rules = rules).handle("FWD-ADD 8080 80 tcp"))
         assertEquals("tcp", rules.single().protocol)
