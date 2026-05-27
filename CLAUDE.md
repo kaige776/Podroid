@@ -229,7 +229,7 @@ The guest system layer updates across app versions with **no VM reset and no dat
 ## Common tasks
 
 - **Kotlin/UI change** → `./gradlew assembleDebug && ./gradlew installDebug`.
-- **OpenRC service / package list / guest CLI change** → edit under `build-rootfs/`, `./build-all.sh rootfs`, rebuild APK (the squashfs is an APK asset; a fresh install or VM reset is needed to pick it up since the overlay can shadow it).
+- **OpenRC service / package list / guest CLI change** → edit under `build-rootfs/`, `./build-all.sh rootfs`, rebuild APK. New/changed system files go live on the **next VM boot** with no reset (the plain-overlay union surfaces them; see "VM migration / upgrades"). The exception is a path the user already modified - it lives in the persistent upper and keeps the user's version until removed, so use a `/etc/podroid/migrations/<v>.sh` script for that case.
 - **`init-podroid` change** → `./build-all.sh initramfs`, rebuild APK.
 - **New boot stage** → emit the marker in the right OpenRC service + match it in `BootStageDetector`.
 - **New setting** → add a DataStore key + Flow in `SettingsRepository`, UI in `SettingsScreen`, setter in `SettingsViewModel`, and plumb into `VmConfig`/`buildCommand()` if it affects the VM.
