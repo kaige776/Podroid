@@ -85,6 +85,7 @@
     <string name="about">About</string>
     <string name="architecture">Architecture</string>
     <string name="linux_distro">Linux distro</string>
+    <string name="documentation">Documentation</string>
     <string name="export_diagnostic_log">Export diagnostic log</string>
     <string name="avf_diagnostic">AVF (pKVM) diagnostic</string>
     <string name="running_avf_diagnostic">Running AVF diagnostic…</string>

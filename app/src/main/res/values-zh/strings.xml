@@ -85,6 +85,7 @@
     <string name="about">关于</string>
     <string name="architecture">架构</string>
     <string name="linux_distro">Linux 发行版</string>
+    <string name="documentation">文档</string>
     <string name="export_diagnostic_log">导出诊断日志</string>
     <string name="avf_diagnostic">AVF (pKVM) 诊断</string>
     <string name="running_avf_diagnostic">运行 AVF 诊断…</string>

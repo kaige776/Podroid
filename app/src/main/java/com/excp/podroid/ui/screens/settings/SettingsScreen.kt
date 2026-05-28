@@ -51,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -334,6 +335,12 @@ fun SettingsScreen(
                 PodroidListRow(label = stringResource(R.string.qemu_label), value = "v${BuildConfig.QEMU_VERSION}", mono = true)
                 PodroidListRow(label = stringResource(R.string.architecture), value = "AArch64", mono = true)
                 PodroidListRow(label = stringResource(R.string.linux_distro), value = "Alpine 3.23", mono = true)
+                val uriHandler = LocalUriHandler.current
+                PodroidListRow(
+                    label = stringResource(R.string.documentation),
+                    value = "extv.github.io/Podroid",
+                    onClick = { uriHandler.openUri("https://extv.github.io/Podroid/guide/") },
+                )
                 Spacer(Modifier.height(PodroidTokens.Spacing.MD))
                 PodroidGhostButton(
                     text = stringResource(R.string.export_diagnostic_log),
