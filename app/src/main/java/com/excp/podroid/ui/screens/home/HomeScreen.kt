@@ -177,7 +177,19 @@ fun HomeScreen(
                     if (showAvfHint) {
                         AvfHintBanner(onDismiss = { viewModel.dismissAvfHint() })
                     }
-                    HomeStatusBlock(isStarting, isRunning, vmState, bootStage, meta, uptimeLabel)
+                    HomeStatusBlock(
+                        isStarting = isStarting,
+                        isRunning = isRunning,
+                        vmState = vmState,
+                        bootStage = bootStage,
+                        meta = meta,
+                        uptimeLabel = uptimeLabel,
+                        avfBootFailure = avfBootFailure,
+                        avfFailureAdvice = avfFailureAdvice,
+                        onUseOneCore = { viewModel.useOneCoreAndRetry() },
+                        onSwitchToQemu = { viewModel.switchToQemuAndRetry() },
+                        onRetry = { viewModel.restartVm() },
+                    )
                     HomeDataSection(isRunning, vmState, meta, phoneIp)
                     Spacer(Modifier.weight(1f))
                     HomeActionButtons(
