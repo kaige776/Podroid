@@ -729,7 +729,15 @@ class AvfEngine @Inject constructor(
         // finally leaves a panic instead of an empty console.log. keep_bootcon
         // keeps it printing after the real console registers.
         val earlycon = "earlycon keep_bootcon"
-        val verboseFlags = if (config.verboseLogging) " ignore_loglevel" else ""
+        // DEBUG BRANCH (AVF multi-vCPU diagnosis): force ignore_loglevel on every
+        // AVF boot, not just when the verbose toggle is on. The default extra
+        // cmdline is `loglevel=1 quiet`, which suppresses the early-boot panic we
+        // need to capture for the Tensor G3/G4 MATCH_HOST reboot (#29). With
+        // ignore_loglevel, earlycon prints the full early boot into console.log
+        // so one reporter run yields the panic without any settings to toggle.
+        // Do NOT carry this unconditional flag to main — gate it back behind
+        // config.verboseLogging once the root cause is pinned.
+        val verboseFlags = " ignore_loglevel"
         val resolvedCmdline = ("console=hvc0 $earlycon root=/dev/ram0 mitigations=off " +
             "elevator=mq-deadline podroid.tty=hvc0 podroid.backend=avf podroid.epoch=$epoch " +
             "podroid.x11.dpi=${config.x11Dpi}$verboseFlags " +
