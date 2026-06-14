@@ -79,6 +79,8 @@ Podroid/
 ├── init-podroid                          Minimal initramfs script (~45 lines)
 ├── podroid-bridge.c                      Native PTY ↔ virtio-console relay
 ├── Dockerfile                            Kernel + initramfs + QEMU build pipeline
+├── build-tools/                          Static assets used during Docker builds
+│   └── cross-android-aarch64.ini         Meson cross-compilation config for aarch64-android26
 ├── build-rootfs/                         Alpine squashfs build pipeline
 │   ├── Dockerfile.rootfs
 │   ├── build-rootfs.sh
