@@ -28,4 +28,18 @@ jobs:
            ./build-all.sh rootfs       
            ./build-all.sh qemu        
            ./build-all.sh termux       
-           ./gradlew installDebug    
+           ./gradlew installDebug   
+
+    - name: Upload release
+      uses: ncipollo/release-action@v1.21.0
+      with:
+          tag: ""
+          artifacts: app/build/outputs/apk/debug/app-debug.apk
+          allowUpdates: true
+          replacesArtifacts: true
+          body: ''
+
+
+
+
+           
