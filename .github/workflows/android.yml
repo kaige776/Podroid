@@ -23,4 +23,9 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: ./build-all.sh all
+      run: ./build-all.sh kernel             
+           ./build-all.sh initramfs    
+           ./build-all.sh rootfs       
+           ./build-all.sh qemu        
+           ./build-all.sh termux       
+           ./gradlew installDebug    
