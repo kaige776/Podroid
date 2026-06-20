@@ -33,7 +33,7 @@ jobs:
     - name: Upload release
       uses: ncipollo/release-action@v1.21.0
       with:
-          tag: ""
+          tag: "Podroid"
           artifacts: app/build/outputs/apk/debug/app-debug.apk
           allowUpdates: true
           replacesArtifacts: true
