@@ -54,7 +54,7 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            signingConfig signingConfigs.release
+            signingConfig = signingConfigs.release
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
