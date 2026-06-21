@@ -27,21 +27,16 @@ jobs:
            ./build-all.sh qemu        
            ./build-all.sh termux
 
+    - name: Decode Keystore
+      run: |
+        echo "${{ secrets.SIGNING_KEY_STORE_BASE64 }}" | base64 --decode > app/upload-keystore.jks
+
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
+      run: ./gradlew assembleRelease
       env:
-        KEYSTORE_FILE: ${{ secrets.KEYSTORE_FILE }}
-        KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      run: |
-           ./gradlew assembleRelease \
-           -Pandroid.injected.signing.store.file=keystore.jks \
-           -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
-           -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-           -Pandroid.injected.signing.key.password=$KEY_PASSWORD
-           
-
-
+        SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+        SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
       
