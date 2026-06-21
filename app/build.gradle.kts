@@ -39,7 +39,7 @@ android {
 
     signingConfigs {
         release {
-                storeFile     = file(app/podroid.jks)
+                storeFile     = file("app/podroid.jks")
                 storePassword = project.findProperty("PODROID_RELEASE_STORE_PASSWORD") as? String
                 keyAlias      = project.findProperty("PODROID_RELEASE_KEY_ALIAS")      as? String
                 keyPassword   = project.findProperty("PODROID_RELEASE_KEY_PASSWORD")   as? String
@@ -54,7 +54,7 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            signingConfig = signingConfigs.release
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
