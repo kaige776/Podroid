@@ -29,10 +29,12 @@ jobs:
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
-    - name: Build with Gradle
-      env:
-       PODROID_RELEASE_STORE_FILE: ${{ secrets.PODROID_RELEASE_STORE_FILE }}
-       PODROID_RELEASE_STORE_PASSWORD: ${{ secrets.PODROID_RELEASE_STORE_PASSWORD }}
-       PODROID_RELEASE_KEY_ALIAS: ${{ secrets.PODROID_RELEASE_KEY_ALIAS }}
-       PODROID_RELEASE_KEY_PASSWORD: ${{ secrets.PODROID_RELEASE_KEY_PASSWORD }}
-      run: ./gradlew assembleRelease
+    - name: Build debug APK (assembleDebug)
+      run: |
+        ./gradlew assembleDebug --stacktrace --info
+
+    - name: Upload debug APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-debug-apk
+        path: app/build/outputs/apk/debug/app-debug.apk
