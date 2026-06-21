@@ -28,19 +28,4 @@ jobs:
            ./build-all.sh rootfs       
            ./build-all.sh qemu        
            ./build-all.sh termux
-           ./build-all.sh apk
-           ./gradlew installDebug   
-
-    - name: Upload release
-      uses: ncipollo/release-action@v1.21.0
-      with:
-          tag: "Podroid"
-          artifacts: app/build/outputs/apk/debug/app-debug.apk
-          allowUpdates: true
-          replacesArtifacts: true
-          body: ''
-
-
-
-
-           
+           ./gradlew assembleRelease
