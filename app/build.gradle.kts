@@ -41,7 +41,7 @@ android {
         create("release") {
             val storePath = (project.findProperty("PODROID_RELEASE_STORE_FILE") as? String)
             if (storePath != null && file(storePath).exists()) {
-                storeFile     = file("storePath")
+                storeFile     = file(storePath)
                 storePassword = project.findProperty("PODROID_RELEASE_STORE_PASSWORD") as? String
                 keyAlias      = project.findProperty("PODROID_RELEASE_KEY_ALIAS")      as? String
                 keyPassword   = project.findProperty("PODROID_RELEASE_KEY_PASSWORD")   as? String
