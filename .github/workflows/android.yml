@@ -30,4 +30,8 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
+      env:
+       PODROID_RELEASE_STORE_PASSWORD: ${{ secrets.PODROID_RELEASE_STORE_PASSWORD }}
+       PODROID_RELEASE_KEY_ALIAS: ${{ secrets.PODROID_RELEASE_KEY_ALIAS }}
+       PODROID_RELEASE_KEY_PASSWORD: ${{ secrets.PODROID_RELEASE_KEY_PASSWORD }}
       run: ./gradlew assembleRelease
