@@ -27,7 +27,8 @@ jobs:
            ./build-all.sh initramfs    
            ./build-all.sh rootfs       
            ./build-all.sh qemu        
-           ./build-all.sh termux       
+           ./build-all.sh termux
+           ./build-all.sh apk
            ./gradlew installDebug   
 
     - name: Upload release
