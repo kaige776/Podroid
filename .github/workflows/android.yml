@@ -23,12 +23,12 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Bash
-      run: ./build-all.sh kernel             
-           ./build-all.sh initramfs    
-           ./build-all.sh rootfs       
-           ./build-all.sh qemu        
-           ./build-all.sh termux
-           ./gradlew assembleDebug
+      run: ./build-all.sh kernel   \           
+           ./build-all.sh initramfs   \
+           ./build-all.sh rootfs   \ 
+           ./build-all.sh qemu   \    
+           ./build-all.sh termux   \
+           ./gradlew assembleDebug   \
 
     - name: Upload debug APK artifact
       uses: actions/upload-artifact@v4
